@@ -7,9 +7,12 @@ import java.nio.charset.StandardCharsets;
 import javax.net.ssl.HttpsURLConnection;
 final class Whisper {
  static String transcribe(Context context,Uri uri,String key)throws Exception{
+ return transcribe(context,uri,key,context.getContentResolver().getType(uri));
+ }
+ static String transcribe(Context context,Uri uri,String key,String mime)throws Exception{
  File temp=File.createTempFile("speech-",".audio",context.getCacheDir());
  try{
- String mime=context.getContentResolver().getType(uri);
+
  String ext="audio/mpeg".equals(mime)?"mp3":"audio/wav".equals(mime)||"audio/x-wav".equals(mime)?"wav":"audio/mp4".equals(mime)||"audio/x-m4a".equals(mime)?"m4a":"audio/webm".equals(mime)?"webm":"audio/flac".equals(mime)?"flac":null;
  if(ext==null)throw new IOException("Hỗ trợ MP3, WAV, M4A, WebM, FLAC");
  try(InputStream in=context.getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(temp)){if(in==null)throw new IOException("Không đọc được âm thanh");byte[] b=new byte[8192];int n;long size=0;while((n=in.read(b))!=-1){size+=n;if(size>24000000)throw new IOException("Âm thanh vượt 24 MB");out.write(b,0,n);}}
