@@ -17,6 +17,7 @@ public class MainActivity extends Activity {
  button(root,"Chọn video",()->pick("video/*",1));
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ button(root,"Whisper • tạo phụ đề từ tệp âm thanh",()->pick("audio/*",5));
  button(root,"OCR ảnh phụ đề",()->pick("image/*",4));
  button(root,"Dịch AI OpenAI",()->aiTranslate(false));
  button(root,"Dịch AI Gemini",()->aiTranslate(true));
@@ -35,6 +36,14 @@ public class MainActivity extends Activity {
  if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty())tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"cue-"+position);}}else if(narrate&&tts!=null){tts.stop();lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
  @Override protected void onDestroy(){handler.removeCallbacks(tick);if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+ void transcribe(android.net.Uri uri){
+ EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+ new android.app.AlertDialog.Builder(this).setTitle("Whisper • gửi âm thanh lên OpenAI, tối đa 24 MB, có thể tính phí").setView(key).setNegativeButton("Hủy",null).setPositiveButton("Tạo phụ đề",(d,w)->{
+ String token=key.getText().toString().trim();key.setText("");if(token.isEmpty())return;String snapshot=subtitles.getText().toString();
+ Toast.makeText(this,"Đang nhận diện lời thoại...",Toast.LENGTH_LONG).show();
+ new Thread(()->{try{String result=Whisper.transcribe(this,uri,token);runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Whisper thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
+ }).show();
+ }
  void recognizeImage(android.net.Uri uri){
  try{
  com.google.mlkit.vision.common.InputImage image=com.google.mlkit.vision.common.InputImage.fromFilePath(this,uri);
@@ -77,6 +86,7 @@ public class MainActivity extends Activity {
  @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(result!=RESULT_OK||data==null||data.getData()==null)return;
  try{if(code==1){lastSpoken="";lastPosition=-1;selectedVideo=data.getData();getContentResolver().takePersistableUriPermission(selectedVideo,Intent.FLAG_GRANT_READ_URI_PERMISSION);getPreferences(MODE_PRIVATE).edit().putString("video",selectedVideo.toString()).apply();video.setVideoURI(selectedVideo);video.start();}
  else if(code==2){try(InputStream in=getContentResolver().openInputStream(data.getData());ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2000000)throw new IOException("Tệp quá lớn");out.write(buf,0,n);}subtitles.setText(new String(out.toByteArray(),StandardCharsets.UTF_8));}}
+ else if(code==5){transcribe(data.getData());}
  else if(code==4){recognizeImage(data.getData());}
  else if(code==3){try(OutputStream out=getContentResolver().openOutputStream(data.getData())){out.write(subtitles.getText().toString().getBytes(StandardCharsets.UTF_8));}Toast.makeText(this,"Đã lưu phụ đề",Toast.LENGTH_SHORT).show();}
  }catch(Exception e){Toast.makeText(this,"Không thể xử lý tệp: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
