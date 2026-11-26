@@ -7,19 +7,23 @@ import android.view.ViewGroup;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 public class MainActivity extends Activity {
- VideoView video; EditText subtitles;
+ VideoView video; EditText subtitles; android.speech.tts.TextToSpeech tts; boolean voiceReady;
  @Override public void onCreate(Bundle b){super.onCreate(b);
- LinearLayout root=new LinearLayout(this); root.setOrientation(1); root.setPadding(24,48,24,24);
+ LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(24,48,24,24);
  TextView title=new TextView(this); title.setText("Capcut Free • Android"); title.setTextSize(24); root.addView(title);
  video=new VideoView(this); root.addView(video,new LinearLayout.LayoutParams(-1,0,2));
  MediaController controls=new MediaController(this); video.setMediaController(controls);
  button(root,"Chọn video",()->pick("video/*",1));
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
- subtitles=new EditText(this); subtitles.setGravity(48); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
+ button(root,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
+ button(root,"Dừng đọc",()->{if(tts!=null)tts.stop();});
  setContentView(root);
+ tts=new android.speech.tts.TextToSpeech(this,status->{if(status==android.speech.tts.TextToSpeech.SUCCESS && tts!=null){voiceReady=tts.setLanguage(new java.util.Locale("vi","VN"))>=0;}});
  if(b!=null)subtitles.setText(b.getString("subtitles",""));
  }
+ @Override protected void onDestroy(){if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
  void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setOnClickListener(v->action.run());root.addView(b);}
  void pick(String mime,int code){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(mime);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  @Override protected void onSaveInstanceState(Bundle b){super.onSaveInstanceState(b);b.putString("subtitles",subtitles.getText().toString());}
