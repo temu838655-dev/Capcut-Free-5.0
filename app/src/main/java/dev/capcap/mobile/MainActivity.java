@@ -17,6 +17,7 @@ public class MainActivity extends Activity {
  button(root,"Chọn video",()->pick("video/*",1));
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ button(root,"OCR ảnh phụ đề",()->pick("image/*",4));
  button(root,"Dịch máy sang tiếng Việt",()->translate());
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
@@ -28,6 +29,13 @@ public class MainActivity extends Activity {
  }
  final Runnable tick=new Runnable(){public void run(){caption.setText(Srt.at(cues,video.getCurrentPosition()));handler.postDelayed(this,150);}};
  @Override protected void onDestroy(){handler.removeCallbacks(tick);if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+ void recognizeImage(android.net.Uri uri){
+ try{
+ com.google.mlkit.vision.common.InputImage image=com.google.mlkit.vision.common.InputImage.fromFilePath(this,uri);
+ com.google.mlkit.vision.text.TextRecognizer recognizer=com.google.mlkit.vision.text.TextRecognition.getClient(com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS);
+ recognizer.process(image).addOnSuccessListener(result->{if(isDestroyed())return;String text=result.getText().trim();if(text.isEmpty()){Toast.makeText(this,"Không tìm thấy chữ",Toast.LENGTH_SHORT).show();return;}new android.app.AlertDialog.Builder(this).setTitle("Văn bản OCR").setMessage(text).setNegativeButton("Đóng",null).setPositiveButton("Sao chép",(d,w)->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OCR",text));}).show();}).addOnFailureListener(e->{if(!isDestroyed())Toast.makeText(this,"OCR thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();}).addOnCompleteListener(t->recognizer.close());
+ }catch(IOException e){Toast.makeText(this,"Không đọc được ảnh",Toast.LENGTH_LONG).show();}
+ }
  void translate(){
  final EditText lang=new EditText(this);lang.setHint("en, zh, ja, ko...");
  new android.app.AlertDialog.Builder(this).setTitle("Ngôn ngữ nguồn").setView(lang).setNegativeButton("Hủy",null).setPositiveButton("Dịch",(d,w)->{
@@ -52,6 +60,7 @@ public class MainActivity extends Activity {
  @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(result!=RESULT_OK||data==null||data.getData()==null)return;
  try{if(code==1){selectedVideo=data.getData();getContentResolver().takePersistableUriPermission(selectedVideo,Intent.FLAG_GRANT_READ_URI_PERMISSION);getPreferences(MODE_PRIVATE).edit().putString("video",selectedVideo.toString()).apply();video.setVideoURI(selectedVideo);video.start();}
  else if(code==2){try(InputStream in=getContentResolver().openInputStream(data.getData());ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2000000)throw new IOException("Tệp quá lớn");out.write(buf,0,n);}subtitles.setText(new String(out.toByteArray(),StandardCharsets.UTF_8));}}
+ else if(code==4){recognizeImage(data.getData());}
  else if(code==3){try(OutputStream out=getContentResolver().openOutputStream(data.getData())){out.write(subtitles.getText().toString().getBytes(StandardCharsets.UTF_8));}Toast.makeText(this,"Đã lưu phụ đề",Toast.LENGTH_SHORT).show();}
  }catch(Exception e){Toast.makeText(this,"Không thể xử lý tệp: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
 }
