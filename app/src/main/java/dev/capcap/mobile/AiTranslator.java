@@ -5,7 +5,14 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import org.json.*;
 final class AiTranslator {
+ static void verifyModel(String token,boolean gemini,String model)throws IOException{
+ if(!model.matches("[A-Za-z0-9._-]{1,100}"))throw new IOException("Tên model không hợp lệ");
+ javax.net.ssl.HttpsURLConnection c=(javax.net.ssl.HttpsURLConnection)new URL(gemini?"https://generativelanguage.googleapis.com/v1beta/models/"+model:"https://api.openai.com/v1/models/"+model).openConnection();
+ try{c.setConnectTimeout(15000);c.setReadTimeout(20000);c.setInstanceFollowRedirects(false);if(gemini)c.setRequestProperty("x-goog-api-key",token);else c.setRequestProperty("Authorization","Bearer "+token);int status=c.getResponseCode();if(status!=200)throw new IOException("Không xác minh được model "+model+" (HTTP "+status+"). Kiểm tra API key và quyền truy cập.");
+ }finally{c.disconnect();}
+ }
  static String translate(String token,List<Srt.Cue> cues,boolean gemini,String model)throws Exception{
+ verifyModel(token,gemini,model);
  StringBuilder result=new StringBuilder();
  for(int start=0;start<cues.size();start+=12){
  int end=Math.min(start+12,cues.size());JSONArray input=new JSONArray();for(int i=start;i<end;i++)input.put(cues.get(i).text);

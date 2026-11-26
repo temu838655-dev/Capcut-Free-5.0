@@ -40,7 +40,7 @@ public class MainActivity extends Activity {
  }
  void aiTranslate(boolean gemini){
  final EditText key=new EditText(this);key.setHint(gemini?"API key Gemini":"API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
- final EditText model=new EditText(this);model.setSingleLine(true);model.setText(gemini?"gemini-2.5-flash":"gpt-5-mini");LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.addView(key);fields.addView(model);
+ final EditText model=new EditText(this);model.setSingleLine(true);model.setText(gemini?"gemini-3.5-flash-lite":"gpt-5-mini");LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.addView(key);fields.addView(model);
  new android.app.AlertDialog.Builder(this).setTitle("Dịch AI • gửi phụ đề tới "+(gemini?"Gemini":"OpenAI")+" (có thể tính phí)").setView(fields).setNegativeButton("Hủy",null).setPositiveButton("Dịch",(d,w)->{
  String selectedModel=model.getText().toString().trim();if(!selectedModel.matches("[A-Za-z0-9._-]{1,100}")){Toast.makeText(this,"Tên model không hợp lệ",Toast.LENGTH_SHORT).show();return;} String token=key.getText().toString().trim();key.setText("");if(token.isEmpty())return;
  String snapshot=subtitles.getText().toString();final java.util.List<Srt.Cue> original;try{original=Srt.parse(snapshot);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
