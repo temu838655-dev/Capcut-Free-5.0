@@ -17,6 +17,7 @@ public class MainActivity extends Activity {
  button(root,"Chọn video",()->pick("video/*",1));
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ button(root,"Dịch máy sang tiếng Việt",()->translate());
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
  button(root,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
@@ -27,6 +28,24 @@ public class MainActivity extends Activity {
  }
  final Runnable tick=new Runnable(){public void run(){caption.setText(Srt.at(cues,video.getCurrentPosition()));handler.postDelayed(this,150);}};
  @Override protected void onDestroy(){handler.removeCallbacks(tick);if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+ void translate(){
+ final EditText lang=new EditText(this);lang.setHint("en, zh, ja, ko...");
+ new android.app.AlertDialog.Builder(this).setTitle("Ngôn ngữ nguồn").setView(lang).setNegativeButton("Hủy",null).setPositiveButton("Dịch",(d,w)->{
+ String source=com.google.mlkit.nl.translate.TranslateLanguage.fromLanguageTag(lang.getText().toString().trim());
+ if(source==null){Toast.makeText(this,"Ngôn ngữ không hỗ trợ",Toast.LENGTH_LONG).show();return;}
+ final java.util.List<Srt.Cue> original;try{original=Srt.parse(subtitles.getText().toString());}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
+ if(original.isEmpty())return;
+ final String snapshot=subtitles.getText().toString();
+ com.google.mlkit.nl.translate.Translator client=com.google.mlkit.nl.translate.Translation.getClient(new com.google.mlkit.nl.translate.TranslatorOptions.Builder().setSourceLanguage(source).setTargetLanguage(com.google.mlkit.nl.translate.TranslateLanguage.VIETNAMESE).build());
+ Toast.makeText(this,"Đang tải mô hình và dịch...",Toast.LENGTH_LONG).show();
+ client.downloadModelIfNeeded().addOnSuccessListener(v->translateNext(client,original,0,new StringBuilder(),snapshot)).addOnFailureListener(e->{client.close();Toast.makeText(this,"Không tải được mô hình: "+e.getMessage(),Toast.LENGTH_LONG).show();});
+ }).show();
+ }
+ void translateNext(com.google.mlkit.nl.translate.Translator client,java.util.List<Srt.Cue> list,int i,StringBuilder out,String snapshot){
+ if(isFinishing()||isDestroyed()){client.close();return;}
+ if(i==list.size()){client.close();if(snapshot.equals(subtitles.getText().toString())){subtitles.setText(out.toString());cues=Srt.parse(out.toString());}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();return;}
+ Srt.Cue c=list.get(i);client.translate(c.text).addOnSuccessListener(t->{out.append(i+1).append('\n').append(Srt.format(c.start)).append(" --> ").append(Srt.format(c.end)).append('\n').append(t).append("\n\n");translateNext(client,list,i+1,out,snapshot);}).addOnFailureListener(e->{client.close();Toast.makeText(this,"Dịch thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});
+ }
  void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setOnClickListener(v->action.run());root.addView(b);}
  void pick(String mime,int code){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(mime);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  @Override protected void onPause(){super.onPause();getPreferences(MODE_PRIVATE).edit().putString("draft",subtitles.getText().toString()).apply();if(video.isPlaying())video.pause();if(tts!=null)tts.stop();}
