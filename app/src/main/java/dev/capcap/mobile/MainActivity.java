@@ -18,6 +18,7 @@ public class MainActivity extends Activity {
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(root,"OCR ảnh phụ đề",()->pick("image/*",4));
+ button(root,"Dịch AI OpenAI",()->aiTranslate());
  button(root,"Dịch máy sang tiếng Việt",()->translate());
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
@@ -35,6 +36,16 @@ public class MainActivity extends Activity {
  com.google.mlkit.vision.text.TextRecognizer recognizer=com.google.mlkit.vision.text.TextRecognition.getClient(com.google.mlkit.vision.text.latin.TextRecognizerOptions.DEFAULT_OPTIONS);
  recognizer.process(image).addOnSuccessListener(result->{if(isDestroyed())return;String text=result.getText().trim();if(text.isEmpty()){Toast.makeText(this,"Không tìm thấy chữ",Toast.LENGTH_SHORT).show();return;}new android.app.AlertDialog.Builder(this).setTitle("Văn bản OCR").setMessage(text).setNegativeButton("Đóng",null).setPositiveButton("Sao chép",(d,w)->{android.content.ClipboardManager clipboard=(android.content.ClipboardManager)getSystemService(CLIPBOARD_SERVICE);clipboard.setPrimaryClip(android.content.ClipData.newPlainText("OCR",text));}).show();}).addOnFailureListener(e->{if(!isDestroyed())Toast.makeText(this,"OCR thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();}).addOnCompleteListener(t->recognizer.close());
  }catch(IOException e){Toast.makeText(this,"Không đọc được ảnh",Toast.LENGTH_LONG).show();}
+ }
+ void aiTranslate(){
+ final EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+ new android.app.AlertDialog.Builder(this).setTitle("Dịch AI • gửi nội dung phụ đề tới OpenAI (có thể tính phí)").setView(key).setNegativeButton("Hủy",null).setPositiveButton("Dịch",(d,w)->{
+ String token=key.getText().toString().trim();key.setText("");if(token.isEmpty())return;
+ String snapshot=subtitles.getText().toString();final java.util.List<Srt.Cue> original;try{original=Srt.parse(snapshot);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
+ if(original.isEmpty())return;
+ Toast.makeText(this,"Đang dịch AI...",Toast.LENGTH_LONG).show();
+ new Thread(()->{try{String result=AiTranslator.translate(token,original);runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){subtitles.setText(result);cues=Srt.parse(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Dịch AI thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
+ }).show();
  }
  void translate(){
  final EditText lang=new EditText(this);lang.setHint("en, zh, ja, ko...");
