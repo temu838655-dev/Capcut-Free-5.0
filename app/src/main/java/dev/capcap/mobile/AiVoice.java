@@ -10,13 +10,17 @@ import org.json.JSONObject;
 final class AiVoice {
  static final int RATE=24000;
  static void render(Context context,Uri uri,String key,String voice,List<Srt.Cue> cues)throws Exception{
+ renderWith(context,uri,cues,(text,speed)->speech(key,voice,text,speed));
+ }
+ interface SpeechSource{byte[] synthesize(String text,double speed)throws Exception;}
+ static void renderWith(Context context,Uri uri,List<Srt.Cue> cues,SpeechSource source)throws Exception{
  long end=0;for(Srt.Cue c:cues)end=Math.max(end,c.end);
  if(end>1800000||cues.size()>1000)throw new IOException("Tối đa 30 phút và 1000 câu");
  File temp=File.createTempFile("dub-",".wav",context.getCacheDir());
  try{
  try(RandomAccessFile out=new RandomAccessFile(temp,"rw")){
  long samples=end*RATE/1000;out.writeBytes("RIFF");le(out,36+samples*2,4);out.writeBytes("WAVEfmt ");le(out,16,4);le(out,1,2);le(out,1,2);le(out,RATE,4);le(out,RATE*2,4);le(out,2,2);le(out,16,2);out.writeBytes("data");le(out,samples*2,4);out.setLength(44+samples*2);
- for(Srt.Cue c:cues){long start=c.start*RATE/1000;int capacity=(int)((c.end-c.start)*RATE/1000);byte[] pcm=speech(key,voice,c.text);if(capacity>0&&pcm.length/2>capacity*1.15){double speed=Math.min(1.8,Math.max(1.05,(double)(pcm.length/2)/capacity));try{byte[] retry=speech(key,voice,c.text,speed);if(retry.length>0&&(retry.length&1)==0&&retry.length<pcm.length)pcm=retry;}catch(IOException retryError){if(pcm.length/2>capacity*2L)throw retryError;}}byte[] fitted=fit(pcm,capacity);out.seek(44+start*2);byte[] existing=new byte[fitted.length];out.readFully(existing);for(int i=0;i<fitted.length;i+=2){int x=(short)((existing[i]&255)|(existing[i+1]<<8));int y=(short)((fitted[i]&255)|(fitted[i+1]<<8));int mixed=Math.max(-32768,Math.min(32767,x+y));fitted[i]=(byte)mixed;fitted[i+1]=(byte)(mixed>>8);}out.seek(44+start*2);out.write(fitted);}
+ for(Srt.Cue c:cues){long start=c.start*RATE/1000;int capacity=(int)((c.end-c.start)*RATE/1000);byte[] pcm=source.synthesize(c.text,1.0);if(capacity>0&&pcm.length/2>capacity*1.15){double speed=Math.min(1.8,Math.max(1.05,(double)(pcm.length/2)/capacity));try{byte[] retry=source.synthesize(c.text,speed);if(retry.length>0&&(retry.length&1)==0&&retry.length<pcm.length)pcm=retry;}catch(IOException retryError){if(pcm.length/2>capacity*2L)throw retryError;}}byte[] fitted=fit(pcm,capacity);out.seek(44+start*2);byte[] existing=new byte[fitted.length];out.readFully(existing);for(int i=0;i<fitted.length;i+=2){int x=(short)((existing[i]&255)|(existing[i+1]<<8));int y=(short)((fitted[i]&255)|(fitted[i+1]<<8));int mixed=Math.max(-32768,Math.min(32767,x+y));fitted[i]=(byte)mixed;fitted[i+1]=(byte)(mixed>>8);}out.seek(44+start*2);out.write(fitted);}
  }
  try(InputStream in=new FileInputStream(temp);OutputStream out=context.getContentResolver().openOutputStream(uri,"wt")){if(out==null)throw new IOException("Không mở được tệp xuất");byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1)out.write(b,0,n);}
  }finally{if(!temp.delete())temp.deleteOnExit();}
