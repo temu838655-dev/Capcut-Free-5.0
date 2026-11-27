@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
  button(exports,"Xuất gói chuyển dự án (ZIP)",()->{try{if(selectedVideo==null)throw new IOException("Chọn video trước");Srt.parse(subtitles.getText().toString());Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"capcap-project.zip");startActivityForResult(i,11);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(exports,"Xuất giọng AI WAV",()->exportVoice());
  LinearLayout speech=page(root,"04  •  THUYẾT MINH");
+ button(speech,"Xuất MP4 lồng tiếng offline",()->pickOfflineMp4());
  button(speech,"Xuất WAV giọng Việt miễn phí",()->pickOfflineWav());
  button(speech,"Chọn giọng Việt offline miễn phí",()->chooseOfflineVoice());
  button(speech,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
@@ -55,6 +56,15 @@ public class MainActivity extends Activity {
  if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty())tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"cue-"+position);}}else if(narrate&&tts!=null){tts.stop();lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
  String offlineExportVoice;java.util.List<Srt.Cue> offlineExportCues;boolean offlineExportRunning;
+ void pickOfflineMp4(){
+ if(offlineExportRunning||offlineExportCues!=null||autoDubFile!=null||activeMix!=null)return;
+ final android.net.Uri source=selectedVideo;if(source==null){Toast.makeText(this,"Chưa chọn video",Toast.LENGTH_LONG).show();return;}
+ final String name=getPreferences(MODE_PRIVATE).getString("offlineVoice","");if(name.isEmpty()){chooseOfflineVoice();return;}
+ final java.util.List<Srt.Cue> list=Srt.parse(subtitles.getText().toString());if(list.isEmpty()){Toast.makeText(this,"Chưa có phụ đề",Toast.LENGTH_LONG).show();return;}
+ try{autoDubFile=File.createTempFile("offline-dub-",".wav",getCacheDir());}catch(IOException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
+ final File file=autoDubFile;autoDubSource=source;autoDubCues=list;offlineExportRunning=true;Toast.makeText(this,"Đang tạo giọng offline cho video",Toast.LENGTH_LONG).show();
+ new Thread(()->{try(OfflineVoice engine=new OfflineVoice(getApplicationContext(),name)){AiVoice.renderWith(getApplicationContext(),android.net.Uri.fromFile(file),list,engine);runOnUiThread(()->{offlineExportRunning=false;if(isDestroyed()){clearAutoDub();return;}try{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("video/mp4");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"dub-offline.mp4");startActivityForResult(i,17);}catch(Exception e){clearAutoDub();Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});}catch(Exception e){runOnUiThread(()->{offlineExportRunning=false;clearAutoDub();if(!isDestroyed())Toast.makeText(this,"Tạo giọng offline thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
+ }
  void pickOfflineWav(){
  if(offlineExportRunning||offlineExportCues!=null)return;
  String name=getPreferences(MODE_PRIVATE).getString("offlineVoice","");if(name.isEmpty()){chooseOfflineVoice();return;}
