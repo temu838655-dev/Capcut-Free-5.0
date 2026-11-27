@@ -47,11 +47,15 @@ public class MainActivity extends Activity {
  }).show();
  }
  void scanVideo(){
+ String[] languages={"Latin (Việt, Anh...)","Tiếng Trung","Tiếng Nhật","Tiếng Hàn"};
+ new android.app.AlertDialog.Builder(this).setTitle("Ngôn ngữ OCR").setItems(languages,(d,language)->new android.app.AlertDialog.Builder(this).setTitle("Vùng quét").setItems(new String[]{"40% phía dưới","Toàn bộ khung hình","40% phía trên"},(dialog,region)->scanVideo(language,region)).show()).show();
+ }
+ void scanVideo(int language,int region){
  if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}
  final android.net.Uri uri=selectedVideo;final String snapshot=subtitles.getText().toString();
  java.util.concurrent.atomic.AtomicBoolean cancel=new java.util.concurrent.atomic.AtomicBoolean(false);
  android.app.ProgressDialog progress=new android.app.ProgressDialog(this);progress.setTitle("OCR video");progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);progress.setMax(100);progress.setCancelable(false);progress.setButton(android.content.DialogInterface.BUTTON_NEGATIVE,"Hủy",(d,w)->cancel.set(true));progress.show();
- new Thread(()->{try{String result=VideoOcr.scan(this,uri,cancel,n->runOnUiThread(()->{if(!isDestroyed())progress.setProgress(n);}));runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(cancel.get())return;if(snapshot.equals(subtitles.getText().toString())&&uri.equals(selectedVideo)){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Dự án đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(!cancel.get())Toast.makeText(this,"OCR thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
+ new Thread(()->{try{String result=VideoOcr.scan(this,uri,language,region,cancel,n->runOnUiThread(()->{if(!isDestroyed())progress.setProgress(n);}));runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(cancel.get())return;if(snapshot.equals(subtitles.getText().toString())&&uri.equals(selectedVideo)){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Dự án đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(!cancel.get())Toast.makeText(this,"OCR thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }
  void recognizeImage(android.net.Uri uri){
  try{
