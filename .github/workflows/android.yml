@@ -3,6 +3,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      publish_preview:
+        description: 'Publish tested debug APK as a prerelease'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -42,3 +47,21 @@ jobs:
           arch: x86_64
           disable-animations: true
           script: bash .github/scripts/smoke.sh
+  publish-preview:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview && github.ref == 'refs/heads/main'
+    needs: [build, smoke]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-development-apk
+      - name: Publish tested preview
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          tag="preview-${GITHUB_RUN_ID}"
+          sha256sum app-debug.apk > SHA256SUMS.txt
+          gh release create "$tag" app-debug.apk SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title "Android development preview $tag" --notes "Debug-signed APK. Build, lint, unit tests and emulator smoke checks passed. Not a production release."
