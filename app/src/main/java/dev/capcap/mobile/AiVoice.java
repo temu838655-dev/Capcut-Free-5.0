@@ -31,7 +31,12 @@ final class AiVoice {
  static byte[] speech(String key,String voice,String text)throws Exception{
  HttpsURLConnection c=(HttpsURLConnection)new URL("https://api.openai.com/v1/audio/speech").openConnection();
  try{c.setConnectTimeout(20000);c.setReadTimeout(120000);c.setInstanceFollowRedirects(false);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Authorization","Bearer "+key);c.setRequestProperty("Content-Type","application/json");
- JSONObject json=new JSONObject().put("model","gpt-4o-mini-tts").put("voice",voice).put("input",text).put("response_format","pcm");
+ String[] profile=voice.split(":",2);String accent=profile.length==2?profile[1]:"neutral";
+ String regional="Speak natural native Vietnamese with clear tones.";
+ if("north".equals(accent))regional="Speak native Northern Vietnamese, Hanoi accent.";
+ else if("central".equals(accent))regional="Speak native Central Vietnamese, Hue accent, intelligible and natural.";
+ else if("south".equals(accent))regional="Speak native Southern Vietnamese, Ho Chi Minh City accent.";
+ JSONObject json=new JSONObject().put("model","gpt-4o-mini-tts").put("voice",profile[0]).put("input",text).put("instructions",regional+" Use conversational pacing, natural emotional prosody, appropriate pauses and emphasis. Read only the supplied text without adding or changing words. Avoid robotic delivery.").put("response_format","pcm");
  try(OutputStream out=c.getOutputStream()){out.write(json.toString().getBytes(StandardCharsets.UTF_8));}
  int status=c.getResponseCode();if(status!=200)throw new IOException("TTS HTTP "+status);
  ByteArrayOutputStream out=new ByteArrayOutputStream();try(InputStream in=c.getInputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){if(out.size()+n>10000000)throw new IOException("Câu thoại quá dài");out.write(b,0,n);}}
