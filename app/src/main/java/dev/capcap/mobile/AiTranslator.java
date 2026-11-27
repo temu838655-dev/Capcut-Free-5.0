@@ -15,10 +15,11 @@ final class AiTranslator {
  return translate(token,cues,gemini,model,"","");
  }
  static String translate(String token,List<Srt.Cue> cues,boolean gemini,String model,String fallbackToken,String fallbackModel)throws Exception{
- try{verifyModel(token,gemini,model);}catch(Exception e){if(fallbackToken.isEmpty()||e instanceof InterruptedException)throw e;return translate(fallbackToken,cues,!gemini,fallbackModel);}
- StringBuilder result=new StringBuilder();
- List<String> accepted=new ArrayList<>();
- for(int start=0;start<cues.size();start+=12){
+ return translateFrom(token,cues,gemini,model,fallbackToken,fallbackModel,0,new ArrayList<>(),new StringBuilder());
+ }
+ private static String translateFrom(String token,List<Srt.Cue> cues,boolean gemini,String model,String fallbackToken,String fallbackModel,int offset,List<String> accepted,StringBuilder result)throws Exception{
+ try{verifyModel(token,gemini,model);}catch(Exception e){if(fallbackToken.isEmpty()||e instanceof InterruptedException)throw e;return translateFrom(fallbackToken,cues,!gemini,fallbackModel,"","",offset,accepted,result);}
+ for(int start=offset;start<cues.size();start+=12){
  int end=Math.min(start+12,cues.size());
  try{JSONArray input=new JSONArray();for(int i=start;i<end;i++)input.put(cues.get(i).text);
  JSONArray context=new JSONArray();for(int i=Math.max(0,start-3);i<start;i++)context.put(new JSONObject().put("source",cues.get(i).text).put("translation",accepted.get(i)));
@@ -36,7 +37,7 @@ final class AiTranslator {
  break;
  }finally{c.disconnect();}
  }
- }catch(Exception failure){if(fallbackToken.isEmpty()||failure instanceof InterruptedException)throw failure;String tail=translate(fallbackToken,cues.subList(start,cues.size()),!gemini,fallbackModel);int index=start+1;for(Srt.Cue cue:Srt.parse(tail)){result.append(index++).append('\n').append(Srt.format(cue.start)).append(" --> ").append(Srt.format(cue.end)).append('\n').append(cue.text).append("\n\n");}return result.toString();}
+ }catch(Exception failure){if(fallbackToken.isEmpty()||failure instanceof InterruptedException)throw failure;return translateFrom(fallbackToken,cues,!gemini,fallbackModel,"","",start,accepted,result);}
  }return result.toString();
  }
 }
