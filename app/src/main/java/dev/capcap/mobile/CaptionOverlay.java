@@ -11,13 +11,14 @@ import androidx.media3.effect.OverlaySettings;
 import java.util.List;
 @androidx.media3.common.util.UnstableApi
 final class CaptionOverlay extends TextOverlay {
- final List<Srt.Cue> cues;final int size,color,position;final boolean background;
+ final List<Srt.Cue> cues;final int size,color,position;final boolean background;int frameWidth=720;String previous=null;SpannableString cached;
  CaptionOverlay(List<Srt.Cue> cues,int size,int color,int position,boolean background){this.cues=cues;this.size=size;this.color=color;this.position=position;this.background=background;}
+ @Override public void configure(androidx.media3.common.util.Size videoSize){super.configure(videoSize);frameWidth=videoSize.getWidth();previous=null;}
  @Override public SpannableString getText(long presentationTimeUs){
  String value=Srt.at(cues,presentationTimeUs/1000);
- SpannableString text=new SpannableString(value.isEmpty()?" ":value);
+ if(value.equals(previous)&&cached!=null)return cached;android.text.TextPaint paint=new android.text.TextPaint(android.graphics.Paint.ANTI_ALIAS_FLAG);paint.setTextSize(size);String wrapped=CaptionWrap.wrap(value,Math.max(1,frameWidth*0.88f),s->paint.measureText(s));SpannableString text=new SpannableString(wrapped.isEmpty()?" ":wrapped);
  if(!value.isEmpty()){text.setSpan(new ForegroundColorSpan(color),0,text.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);if(background)text.setSpan(new BackgroundColorSpan(0xcc000000),0,text.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);text.setSpan(new AbsoluteSizeSpan(size),0,text.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
- return text;
+ previous=value;cached=text;return text;
  }
  @Override public OverlaySettings getOverlaySettings(long presentationTimeUs){return new OverlaySettings.Builder().setBackgroundFrameAnchor(0f,position==2?0.82f:position==1?0f:-0.82f).setOverlayFrameAnchor(0f,position==2?1f:position==1?0f:-1f).build();}
 }
