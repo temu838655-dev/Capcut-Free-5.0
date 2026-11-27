@@ -19,6 +19,7 @@ public class MainActivity extends Activity {
  button(project,"Nhập phụ đề SRT / VTT / ASS",()->pick("*/*",2));button(project,"Trích xuất âm thanh hàng loạt",()->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,13);});button(project,"Lưu dự án có tên",()->saveNamed());button(project,"Mở / quản lý dự án",()->openNamed());
  LinearLayout ai=page(root,"02  •  PHỤ ĐỀ & AI");
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT");subtitles.setTextColor(0xffeffcfb);subtitles.setHintTextColor(0xff9abdbd);subtitles.setBackground(panel(0xff163238,16));subtitles.setPadding(dp(14),dp(12),dp(14),dp(12)); ai.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ button(ai,"Tự động • nhận diện và dịch video",()->autoSubtitle());
  button(ai,"Whisper • nhận diện video đang mở",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}transcribe(selectedVideo,true);});
  button(ai,"Whisper • tạo phụ đề từ tệp âm thanh",()->pick("audio/*",5));
  button(ai,"OCR phụ đề video",()->scanVideo());
@@ -85,6 +86,16 @@ public class MainActivity extends Activity {
  }
  void saveTimeline(java.util.List<Srt.Cue> list){
  java.util.Collections.sort(list,(a,b)->Long.compare(a.start,b.start));StringBuilder out=new StringBuilder();for(int i=0;i<list.size();i++){Srt.Cue c=list.get(i);out.append(i+1).append('\n').append(Srt.format(c.start)).append(" --> ").append(Srt.format(c.end)).append('\n').append(c.text).append("\n\n");}subtitles.setText(out.toString());cues=Srt.parse(out.toString());getPreferences(MODE_PRIVATE).edit().putString("draft",out.toString()).apply();
+ }
+ boolean autoSubtitleRunning;
+ void autoSubtitle(){
+ if(autoSubtitleRunning){Toast.makeText(this,"Đang xử lý video",Toast.LENGTH_SHORT).show();return;}
+ final android.net.Uri source=selectedVideo;if(source==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}
+ final EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
+ new android.app.AlertDialog.Builder(this).setTitle("Tự động nhận diện và dịch • OpenAI (có thể tính phí)").setView(key).setNegativeButton("Hủy",null).setPositiveButton("Bắt đầu",(d,w)->{
+ final String token=key.getText().toString().trim();key.setText("");if(token.isEmpty()||autoSubtitleRunning)return;final String snapshot=subtitles.getText().toString();autoSubtitleRunning=true;
+ new Thread(()->{File audio=null;try{audio=AudioExtract.extract(this,source);String raw=Whisper.transcribe(this,android.net.Uri.fromFile(audio),token,"audio/mp4");java.util.List<Srt.Cue> original=Srt.parse(raw);if(original.isEmpty())throw new IOException("Không tìm thấy lời thoại");String translated=AiTranslator.translate(token,original,false,"gpt-5-mini");runOnUiThread(()->{if(isDestroyed())return;if(source.equals(selectedVideo)&&snapshot.equals(subtitles.getText().toString())){cues=Srt.parse(translated);subtitles.setText(translated);Toast.makeText(this,"Đã nhận diện và dịch video",Toast.LENGTH_LONG).show();}else Toast.makeText(this,"Dự án đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Xử lý tự động thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}finally{if(audio!=null&&!audio.delete())audio.deleteOnExit();runOnUiThread(()->autoSubtitleRunning=false);}}).start();
+ }).show();
  }
  void transcribe(android.net.Uri uri,boolean fromVideo){
  EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
