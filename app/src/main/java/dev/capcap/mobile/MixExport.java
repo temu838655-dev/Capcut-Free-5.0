@@ -10,14 +10,15 @@ import com.google.common.collect.ImmutableList;
 import java.io.*;
 @androidx.media3.common.util.UnstableApi
 final class MixExport {
- final Activity activity;final Uri video,audio,target;final Runnable done;final float originalGain,voiceGain;final int height;File temp;Transformer transformer;ProgressDialog dialog;volatile boolean canceled;boolean copying,finished;final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());final Runnable poll=new Runnable(){public void run(){if(finished||copying||canceled)return;ProgressHolder holder=new ProgressHolder();if(transformer.getProgress(holder)==Transformer.PROGRESS_STATE_AVAILABLE)dialog.setProgress(holder.progress);handler.postDelayed(this,500);}};
- MixExport(Activity a,Uri v,Uri s,Uri t,float g,float h,int height,Runnable d){activity=a;video=v;audio=s;target=t;originalGain=g;voiceGain=h;this.height=height;done=d;}
+ final Activity activity;final Uri video,audio,target;final Runnable done;final float originalGain,voiceGain;final int height;final java.util.List<Srt.Cue> captions;File temp;Transformer transformer;ProgressDialog dialog;volatile boolean canceled;boolean copying,finished;final android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper());final Runnable poll=new Runnable(){public void run(){if(finished||copying||canceled)return;ProgressHolder holder=new ProgressHolder();if(transformer.getProgress(holder)==Transformer.PROGRESS_STATE_AVAILABLE)dialog.setProgress(holder.progress);handler.postDelayed(this,500);}};
+ MixExport(Activity a,Uri v,Uri s,Uri t,float g,float h,int height,java.util.List<Srt.Cue> captions,Runnable d){activity=a;video=v;audio=s;target=t;originalGain=g;voiceGain=h;this.height=height;this.captions=new java.util.ArrayList<>(captions);done=d;}
  void start()throws IOException{
  temp=File.createTempFile("mix-",".mp4",activity.getCacheDir());
  ChannelMixingAudioProcessor gain=new ChannelMixingAudioProcessor();
  gain.putChannelMixingMatrix(ChannelMixingMatrix.create(1,1).scaleBy(originalGain));
  gain.putChannelMixingMatrix(ChannelMixingMatrix.create(2,2).scaleBy(originalGain));
- EditedMediaItem original=new EditedMediaItem.Builder(MediaItem.fromUri(video)).setEffects(new Effects(ImmutableList.of(gain),height==0?ImmutableList.of():ImmutableList.of(androidx.media3.effect.Presentation.createForHeight(height)))).build();
+ ImmutableList.Builder<androidx.media3.common.Effect> effects=ImmutableList.builder();if(height!=0)effects.add(androidx.media3.effect.Presentation.createForHeight(height));if(!captions.isEmpty())effects.add(new androidx.media3.effect.OverlayEffect(ImmutableList.of(new CaptionOverlay(captions))));
+ EditedMediaItem original=new EditedMediaItem.Builder(MediaItem.fromUri(video)).setEffects(new Effects(ImmutableList.of(gain),effects.build())).build();
  ChannelMixingAudioProcessor voiceProcessor=new ChannelMixingAudioProcessor();voiceProcessor.putChannelMixingMatrix(ChannelMixingMatrix.create(1,1).scaleBy(voiceGain));voiceProcessor.putChannelMixingMatrix(ChannelMixingMatrix.create(2,2).scaleBy(voiceGain));
  EditedMediaItem voice=new EditedMediaItem.Builder(MediaItem.fromUri(audio)).setRemoveVideo(true).setEffects(new Effects(ImmutableList.of(voiceProcessor),ImmutableList.of())).build();
  Composition composition=new Composition.Builder(ImmutableList.of(new EditedMediaItemSequence(ImmutableList.of(original)),new EditedMediaItemSequence(ImmutableList.of(voice)))).build();
