@@ -16,7 +16,7 @@ public class MainActivity extends Activity {
  MediaController controls=new MediaController(this); video.setMediaController(controls);
  caption=new TextView(this); caption.setTextSize(20);caption.setTextColor(0xffe0f9ff);caption.setGravity(android.view.Gravity.CENTER); project.addView(caption);
  button(project,"Chọn video",()->pick("video/*",1));
- button(project,"Nhập phụ đề SRT",()->pick("*/*",2));button(project,"Trích xuất âm thanh hàng loạt",()->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,13);});button(project,"Lưu dự án có tên",()->saveNamed());button(project,"Mở / quản lý dự án",()->openNamed());
+ button(project,"Nhập phụ đề SRT / VTT",()->pick("*/*",2));button(project,"Trích xuất âm thanh hàng loạt",()->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType("video/*");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE,true);startActivityForResult(i,13);});button(project,"Lưu dự án có tên",()->saveNamed());button(project,"Mở / quản lý dự án",()->openNamed());
  LinearLayout ai=page(root,"02  •  PHỤ ĐỀ & AI");
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT");subtitles.setTextColor(0xffeffcfb);subtitles.setHintTextColor(0xff9abdbd);subtitles.setBackground(panel(0xff163238,16));subtitles.setPadding(dp(14),dp(12),dp(14),dp(12)); ai.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(ai,"Whisper • nhận diện video đang mở",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}transcribe(selectedVideo,true);});
@@ -28,6 +28,7 @@ public class MainActivity extends Activity {
  button(ai,"Dịch máy sang tiếng Việt",()->translate());
  button(ai,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(ai,"Timeline • chỉnh từng câu",()->timeline());
+ button(ai,"Lưu phụ đề WebVTT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("text/vtt");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.vtt");startActivityForResult(i,15);});
  button(ai,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
  LinearLayout exports=page(root,"03  •  XUẤT VIDEO & ÂM THANH");
  button(exports,"Xuất MP4 • trộn âm thanh gốc và giọng AI",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}pick("audio/*",9);});
@@ -200,6 +201,6 @@ public class MainActivity extends Activity {
  else if(code==6){renderVoice(data.getData());}
  else if(code==5){transcribe(data.getData(),false);}
  else if(code==4){recognizeImage(data.getData());}
- else if(code==3){try(OutputStream out=getContentResolver().openOutputStream(data.getData())){out.write(subtitles.getText().toString().getBytes(StandardCharsets.UTF_8));}Toast.makeText(this,"Đã lưu phụ đề",Toast.LENGTH_SHORT).show();}
+ else if(code==3||code==15){java.util.List<Srt.Cue> parsed=Srt.parse(subtitles.getText().toString());StringBuilder exported=new StringBuilder(code==15?"WEBVTT\n\n":"");int index=1;for(Srt.Cue cue:parsed){if(code==3)exported.append(index++).append('\n');String a=Srt.format(cue.start),b=Srt.format(cue.end);exported.append(code==15?a.replace(',','.'):a).append(" --> ").append(code==15?b.replace(',','.'):b).append('\n').append(cue.text).append("\n\n");}try(OutputStream out=getContentResolver().openOutputStream(data.getData())){if(out==null)throw new IOException("Không mở được tệp");out.write(exported.toString().getBytes(StandardCharsets.UTF_8));}Toast.makeText(this,"Đã lưu phụ đề",Toast.LENGTH_SHORT).show();}
  }catch(Exception e){Toast.makeText(this,"Không thể xử lý tệp: "+e.getMessage(),Toast.LENGTH_LONG).show();}}
 }
