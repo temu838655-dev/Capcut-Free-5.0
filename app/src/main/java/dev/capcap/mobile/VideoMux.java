@@ -12,6 +12,7 @@ final class VideoMux {
  MediaFormat vf=select(ve,"video/"),af=select(ae,"audio/mp4a-latm");
  if(!vf.containsKey(MediaFormat.KEY_DURATION))throw new IOException("Không xác định được thời lượng video");
  long duration=vf.getLong(MediaFormat.KEY_DURATION);
+ if(duration<=0)throw new IOException("Thời lượng video không hợp lệ");
  mux=new MediaMuxer(temp.getAbsolutePath(),MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
  if(vf.containsKey(MediaFormat.KEY_ROTATION))mux.setOrientationHint(vf.getInteger(MediaFormat.KEY_ROTATION));
  int vt=mux.addTrack(vf),at=mux.addTrack(af);mux.start();
@@ -24,7 +25,8 @@ final class VideoMux {
  throw new IOException("Không tìm thấy track "+prefix+" (âm thanh cần AAC)");
  }
  static void copy(MediaExtractor e,MediaMuxer m,int track,long limit)throws IOException{
- ByteBuffer buffer=ByteBuffer.allocateDirect(16*1024*1024);MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();long first=e.getSampleTime();if(first<0)throw new IOException("Track rỗng");
- while(e.getSampleTime()>=0){long time=e.getSampleTime()-first;if(time>=limit)break;if(android.os.Build.VERSION.SDK_INT>=28){long sampleSize=e.getSampleSize();if(sampleSize>64L*1024*1024)throw new IOException("Khung dữ liệu vượt 64 MB");if(sampleSize>buffer.capacity())buffer=ByteBuffer.allocateDirect((int)sampleSize);}buffer.clear();int size=e.readSampleData(buffer,0);if(size<0)break;if(size>buffer.capacity())throw new IOException("Khung dữ liệu quá lớn");int flags=e.getSampleFlags();if(android.os.Build.VERSION.SDK_INT>=26&&(flags&MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)throw new IOException("Không hỗ trợ khung dữ liệu phân mảnh");if((flags&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw new IOException("Không hỗ trợ nội dung mã hóa");info.set(0,size,time,(flags&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);m.writeSampleData(track,buffer,info);e.advance();}
+ ByteBuffer buffer=ByteBuffer.allocateDirect(16*1024*1024);MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();long first=e.getSampleTime();int written=0;if(first<0)throw new IOException("Track rỗng");
+ while(e.getSampleTime()>=0){long time=e.getSampleTime()-first;if(time>=limit)break;if(android.os.Build.VERSION.SDK_INT>=28){long sampleSize=e.getSampleSize();if(sampleSize>64L*1024*1024)throw new IOException("Khung dữ liệu vượt 64 MB");if(sampleSize>buffer.capacity())buffer=ByteBuffer.allocateDirect((int)sampleSize);}buffer.clear();int size=e.readSampleData(buffer,0);if(size<0)break;if(size>buffer.capacity())throw new IOException("Khung dữ liệu quá lớn");int flags=e.getSampleFlags();if(android.os.Build.VERSION.SDK_INT>=26&&(flags&MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)throw new IOException("Không hỗ trợ khung dữ liệu phân mảnh");if((flags&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw new IOException("Không hỗ trợ nội dung mã hóa");info.set(0,size,time,(flags&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);m.writeSampleData(track,buffer,info);written++;e.advance();}
+ if(written==0)throw new IOException("Track không có dữ liệu trong khoảng xuất");
  }
 }
