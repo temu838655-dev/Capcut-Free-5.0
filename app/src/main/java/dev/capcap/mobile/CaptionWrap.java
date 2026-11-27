@@ -12,7 +12,7 @@ final class CaptionWrap {
  String candidate=line.isEmpty()?word:line+" "+word;
  if(measure.width(candidate)<=max){line=candidate;continue;}
  if(!line.isEmpty()){result.append(line).append('\n');line="";}
- for(int offset=0;offset<word.length();){int cp=word.codePointAt(offset);String next=new String(Character.toChars(cp));if(!line.isEmpty()&&measure.width(line+next)>max){result.append(line).append('\n');line="";}line+=next;offset+=Character.charCount(cp);}
+ for(int offset=0;offset<word.length();){int end=offset+Character.charCount(word.codePointAt(offset));while(end<word.length()){int cp=word.codePointAt(end);int type=Character.getType(cp);if(type!=Character.NON_SPACING_MARK&&type!=Character.COMBINING_SPACING_MARK&&type!=Character.ENCLOSING_MARK)break;end+=Character.charCount(cp);}String next=word.substring(offset,end);if(!line.isEmpty()&&measure.width(line+next)>max){result.append(line).append('\n');line="";}line+=next;offset=end;}
  }
  result.append(line);
  }
