@@ -61,13 +61,18 @@ public class MainActivity extends Activity {
  }
  void timeline(){
  final java.util.List<Srt.Cue> list;try{list=Srt.parse(subtitles.getText().toString());}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
- if(list.isEmpty()){Toast.makeText(this,"Chưa có phụ đề",Toast.LENGTH_SHORT).show();return;}
- String[] rows=new String[list.size()];for(int i=0;i<rows.length;i++){Srt.Cue c=list.get(i);rows[i]=Srt.format(c.start)+" → "+Srt.format(c.end)+"\n"+c.text;}
+  String[] rows=new String[list.size()];for(int i=0;i<rows.length;i++){Srt.Cue c=list.get(i);rows[i]=Srt.format(c.start)+" → "+Srt.format(c.end)+"\n"+c.text;}
  android.widget.ScrollView timelineScroll=new android.widget.ScrollView(this);LinearLayout tracks=new LinearLayout(this);tracks.setOrientation(LinearLayout.VERTICAL);tracks.setPadding(dp(12),dp(8),dp(12),dp(8));timelineScroll.addView(tracks);
  long duration=Math.max(1,video.getDuration());for(Srt.Cue c:list)duration=Math.max(duration,c.end);final long span=duration;
- android.app.AlertDialog timelineDialog=new android.app.AlertDialog.Builder(this).setTitle("Timeline • "+rows.length+" câu").setView(timelineScroll).setNegativeButton("Đóng",null).create();
+ android.app.AlertDialog timelineDialog=new android.app.AlertDialog.Builder(this).setTitle("Timeline • "+rows.length+" câu").setView(timelineScroll).setNegativeButton("Đóng",null).setPositiveButton("Thêm câu",(d,w)->addTimelineCue(list)).create();
  for(int i=0;i<list.size();i++){final int index=i;Srt.Cue cue=list.get(i);TextView label=new TextView(this);label.setText(rows[i]);label.setPadding(dp(4),dp(8),dp(4),dp(4));tracks.addView(label);android.view.View lane=new android.view.View(this){final android.graphics.Paint paint=new android.graphics.Paint(3);@Override protected void onDraw(android.graphics.Canvas canvas){super.onDraw(canvas);float w=getWidth(),h=getHeight();paint.setColor(0xff25464a);canvas.drawRoundRect(0,0,w,h,dp(5),dp(5),paint);paint.setColor(0xff16b8a6);float left=(float)((double)cue.start/span*w),right=(float)((double)cue.end/span*w);canvas.drawRoundRect(left,0,Math.min(w,Math.max(left+dp(3),right)),h,dp(5),dp(5),paint);}};tracks.addView(lane,new LinearLayout.LayoutParams(-1,dp(24)));android.view.View.OnClickListener edit=v->{timelineDialog.dismiss();editCue(list,index);};lane.setOnClickListener(edit);label.setOnClickListener(edit);lane.setContentDescription("Chỉnh phụ đề "+(i+1));}
  timelineDialog.show();
+ }
+ void addTimelineCue(java.util.List<Srt.Cue> list){
+ long start=Math.max(0,video.getCurrentPosition());long end=Math.min(Integer.MAX_VALUE,start+2000);if(end<=start)return;
+ EditText body=new EditText(this);body.setHint("Nội dung phụ đề mới");
+ android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this).setTitle("Thêm phụ đề tại "+Srt.format(start)).setView(body).setNegativeButton("Hủy",null).setPositiveButton("Thêm",null).create();
+ dialog.setOnShowListener(d->dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{try{String value=body.getText().toString().trim();if(value.isEmpty())throw new IllegalArgumentException("Nhập nội dung phụ đề");java.util.List<Srt.Cue> parsed=Srt.parse("1\n"+Srt.format(start)+" --> "+Srt.format(end)+"\n"+value+"\n\n");if(parsed.size()!=1)throw new IllegalArgumentException("Chỉ nhập một câu");list.add(parsed.get(0));saveTimeline(list);dialog.dismiss();timeline();}catch(Exception e){body.setError(e.getMessage());}}));dialog.show();
  }
  void editCue(java.util.List<Srt.Cue> list,int index){
  Srt.Cue cue=list.get(index);LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
