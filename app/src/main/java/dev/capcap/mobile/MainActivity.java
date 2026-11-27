@@ -6,6 +6,7 @@ import android.widget.*;
 import android.view.ViewGroup;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
+@androidx.annotation.OptIn(markerClass=androidx.media3.common.util.UnstableApi.class)
 public class MainActivity extends Activity {
  android.net.Uri selectedVideo; TextView caption; android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper()); java.util.List<Srt.Cue> cues=new java.util.ArrayList<>(); VideoView video; EditText subtitles; android.speech.tts.TextToSpeech tts; boolean voiceReady; boolean narrate; String lastSpoken=""; int lastPosition=-1;
  @Override public void onCreate(Bundle b){super.onCreate(b);
@@ -71,8 +72,12 @@ public class MainActivity extends Activity {
  void mixExport(android.net.Uri target){
  final android.net.Uri source=muxVideo,audio=muxAudio;muxVideo=null;muxAudio=null;if(source==null||audio==null)return;
  if(activeMix!=null){Toast.makeText(this,"Đang xuất video khác",Toast.LENGTH_SHORT).show();return;}
- try{activeMix=new MixExport(this,source,audio,target,()->activeMix=null);activeMix.start();}catch(Exception e){activeMix=null;Toast.makeText(this,"Không thể trộn: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+ LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+ TextView originalLabel=new TextView(this),voiceLabel=new TextView(this);SeekBar original=new SeekBar(this),voice=new SeekBar(this);original.setMax(100);voice.setMax(100);original.setProgress(25);voice.setProgress(100);originalLabel.setText("Âm thanh gốc: 25%");voiceLabel.setText("Giọng AI: 100%");fields.addView(originalLabel);fields.addView(original);fields.addView(voiceLabel);fields.addView(voice);
+ original.setOnSeekBarChangeListener(gainLabel(originalLabel,"Âm thanh gốc"));voice.setOnSeekBarChangeListener(gainLabel(voiceLabel,"Giọng AI"));
+ new android.app.AlertDialog.Builder(this).setTitle("Âm lượng video").setView(fields).setNegativeButton("Hủy",null).setPositiveButton("Xuất",(d,w)->{try{activeMix=new MixExport(this,source,audio,target,original.getProgress()/100f,voice.getProgress()/100f,()->activeMix=null);activeMix.start();}catch(Exception e){activeMix=null;Toast.makeText(this,"Không thể trộn: "+e.getMessage(),Toast.LENGTH_LONG).show();}}).show();
  }
+ SeekBar.OnSeekBarChangeListener gainLabel(TextView label,String name){return new SeekBar.OnSeekBarChangeListener(){public void onProgressChanged(SeekBar bar,int progress,boolean user){label.setText(name+": "+progress+"%");}public void onStartTrackingTouch(SeekBar bar){}public void onStopTrackingTouch(SeekBar bar){}};}
  void exportMux(android.net.Uri target){
  final android.net.Uri source=muxVideo,audio=muxAudio;muxVideo=null;muxAudio=null;if(source==null||audio==null)return;
  Toast.makeText(this,"Đang xuất MP4...",Toast.LENGTH_LONG).show();
