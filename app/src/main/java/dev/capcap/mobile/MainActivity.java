@@ -10,14 +10,15 @@ import java.nio.charset.StandardCharsets;
 public class MainActivity extends Activity {
  android.net.Uri selectedVideo; TextView caption; android.os.Handler handler=new android.os.Handler(android.os.Looper.getMainLooper()); java.util.List<Srt.Cue> cues=new java.util.ArrayList<>(); VideoView video; EditText subtitles; android.speech.tts.TextToSpeech tts; boolean voiceReady; boolean narrate; String lastSpoken=""; int lastPosition=-1;
  @Override public void onCreate(Bundle b){super.onCreate(b);
- LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(24,48,24,24);
- TextView title=new TextView(this); title.setText("Capcut Free • Android"); title.setTextSize(24); root.addView(title);
+ LinearLayout root=new LinearLayout(this); root.setOrientation(LinearLayout.VERTICAL); root.setPadding(dp(18),dp(24),dp(18),dp(24));root.setBackgroundColor(0xff10131e);root.setOnApplyWindowInsetsListener((v,insets)->{v.setPadding(dp(18),dp(18)+insets.getSystemWindowInsetTop(),dp(18),dp(24)+insets.getSystemWindowInsetBottom());return insets;});
+ TextView title=new TextView(this); title.setText("Capcut Free • Android"); title.setTextSize(30);title.setTextColor(0xfff5f7ff);title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);root.addView(title);TextView tagline=new TextView(this);tagline.setText("STUDIO  /  VIDEO • AI • SUBTITLE");tagline.setTextColor(0xff9ba9c7);tagline.setTextSize(12);root.addView(tagline);section(root,"01  •  DỰ ÁN");
  video=new VideoView(this); root.addView(video,new LinearLayout.LayoutParams(-1,0,2));
  MediaController controls=new MediaController(this); video.setMediaController(controls);
- caption=new TextView(this); caption.setTextSize(20); root.addView(caption);
+ caption=new TextView(this); caption.setTextSize(20);caption.setTextColor(0xffe0f9ff);caption.setGravity(android.view.Gravity.CENTER); root.addView(caption);
  button(root,"Chọn video",()->pick("video/*",1));
  button(root,"Nhập phụ đề SRT",()->pick("*/*",2));
- subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
+ section(root,"02  •  PHỤ ĐỀ & AI");
+ subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT");subtitles.setTextColor(0xfff5f7ff);subtitles.setHintTextColor(0xff9ba9c7);subtitles.setBackground(panel(0xff202638,16));subtitles.setPadding(dp(14),dp(12),dp(14),dp(12)); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(root,"Whisper • nhận diện video đang mở",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}transcribe(selectedVideo,true);});
  button(root,"Whisper • tạo phụ đề từ tệp âm thanh",()->pick("audio/*",5));
  button(root,"OCR phụ đề video",()->scanVideo());
@@ -28,11 +29,13 @@ public class MainActivity extends Activity {
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Timeline • chỉnh từng câu",()->timeline());
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
+ section(root,"03  •  XUẤT VIDEO & ÂM THANH");
  button(root,"Xuất MP4 • trộn âm thanh gốc và giọng AI",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}pick("audio/*",9);});
  button(root,"Xuất MP4 • thay âm thanh WAV/AAC",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}pick("audio/*",7);});
  button(root,"Tách track âm thanh AAC từ video",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("audio/mp4");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"original.m4a");startActivityForResult(i,12);});
  button(root,"Xuất gói chuyển dự án (ZIP)",()->{try{if(selectedVideo==null)throw new IOException("Chọn video trước");Srt.parse(subtitles.getText().toString());Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"capcap-project.zip");startActivityForResult(i,11);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Xuất giọng AI WAV",()->exportVoice());
+ section(root,"04  •  THUYẾT MINH");
  button(root,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
  Switch narration=new Switch(this);narration.setText("Thuyết minh đồng bộ video");root.addView(narration);narration.setOnCheckedChangeListener((v,on)->{narrate=on;lastSpoken="";if(!on&&tts!=null)tts.stop();});
  button(root,"Dừng đọc",()->{narration.setChecked(false);if(tts!=null)tts.stop();});
@@ -157,7 +160,10 @@ public class MainActivity extends Activity {
  if(i==list.size()){client.close();if(snapshot.equals(subtitles.getText().toString())){subtitles.setText(out.toString());cues=Srt.parse(out.toString());}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();return;}
  Srt.Cue c=list.get(i);client.translate(c.text).addOnSuccessListener(t->{out.append(i+1).append('\n').append(Srt.format(c.start)).append(" --> ").append(Srt.format(c.end)).append('\n').append(t).append("\n\n");translateNext(client,list,i+1,out,snapshot);}).addOnFailureListener(e->{client.close();Toast.makeText(this,"Dịch thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});
  }
- void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setOnClickListener(v->action.run());root.addView(b);}
+ int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
+ android.graphics.drawable.GradientDrawable panel(int color,int radius){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+ void section(LinearLayout root,String label){TextView t=new TextView(this);t.setText(label);t.setTextColor(0xff64e6d5);t.setTextSize(13);t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);t.setPadding(0,dp(24),0,dp(8));root.addView(t);}
+ void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setAllCaps(false);b.setTextSize(15);b.setGravity(android.view.Gravity.CENTER_VERTICAL|android.view.Gravity.START);boolean primary=label.startsWith("Chọn video")||label.startsWith("Xuất MP4");b.setTextColor(primary?0xff10131e:0xffedf1ff);b.setBackground(new android.graphics.drawable.RippleDrawable(android.content.res.ColorStateList.valueOf(0x337fffff),panel(primary?0xff64e6d5:0xff252b40,14),null));b.setPadding(dp(16),dp(10),dp(16),dp(10));b.setMinHeight(dp(52));b.setOnClickListener(v->action.run());LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.bottomMargin=dp(8);root.addView(b,lp);}
  void pick(String mime,int code){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(mime);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  @Override protected void onPause(){super.onPause();getPreferences(MODE_PRIVATE).edit().putString("draft",subtitles.getText().toString()).apply();if(video.isPlaying())video.pause();if(tts!=null)tts.stop();}
  @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(code==6&&(result!=RESULT_OK||data==null||data.getData()==null)){voiceKey=null;voiceCues=null;}if(result!=RESULT_OK||data==null||data.getData()==null)return;
