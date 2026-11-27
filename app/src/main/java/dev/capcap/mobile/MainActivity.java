@@ -49,9 +49,9 @@ public class MainActivity extends Activity {
  }
  String voiceKey,voiceName;java.util.List<Srt.Cue> voiceCues;
  void exportVoice(){
- EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(129);
+ EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
  String[] voices={"alloy","nova","onyx","shimmer","coral"};Spinner spinner=new Spinner(this);spinner.setAdapter(new ArrayAdapter<String>(this,android.R.layout.simple_spinner_dropdown_item,voices));
- LinearLayout fields=new LinearLayout(this);fields.setOrientation(1);fields.addView(key);fields.addView(spinner);
+ LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);fields.addView(key);fields.addView(spinner);
  new android.app.AlertDialog.Builder(this).setTitle("Giọng AI • gửi phụ đề đến OpenAI (có thể tính phí)").setView(fields).setNegativeButton("Hủy",null).setPositiveButton("Xuất WAV",(d,w)->{try{voiceCues=Srt.parse(subtitles.getText().toString());if(voiceCues.isEmpty())throw new IOException("Chưa có phụ đề");voiceKey=key.getText().toString().trim();key.setText("");if(voiceKey.isEmpty())return;voiceName=voices[spinner.getSelectedItemPosition()];Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("audio/wav");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"dub.wav");startActivityForResult(i,6);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}}).show();
  }
  void renderVoice(android.net.Uri uri){
