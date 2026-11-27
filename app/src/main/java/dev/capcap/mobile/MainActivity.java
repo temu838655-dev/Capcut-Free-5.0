@@ -163,7 +163,7 @@ public class MainActivity extends Activity {
  String snapshot=subtitles.getText().toString();final java.util.List<Srt.Cue> original;try{original=Srt.parse(snapshot);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
  if(original.isEmpty())return;
  Toast.makeText(this,"Đang dịch AI...",Toast.LENGTH_LONG).show();
- new Thread(()->{try{String translated;try{translated=AiTranslator.translate(token,original,gemini,selectedModel);}catch(Exception primary){if(fallbackToken.isEmpty()||primary instanceof InterruptedException)throw primary;runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Đang chuyển AI dự phòng...",Toast.LENGTH_LONG).show();});translated=AiTranslator.translate(fallbackToken,original,!gemini,fallbackModel);}final String result=translated;runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){subtitles.setText(result);cues=Srt.parse(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Dịch AI thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
+ new Thread(()->{try{final String result=AiTranslator.translate(token,original,gemini,selectedModel,fallbackToken,fallbackModel);runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){subtitles.setText(result);cues=Srt.parse(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Dịch AI thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }).show();
  }
  void translate(){
