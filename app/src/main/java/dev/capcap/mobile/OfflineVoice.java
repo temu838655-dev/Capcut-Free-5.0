@@ -29,11 +29,11 @@ final class OfflineVoice implements AutoCloseable,AiVoice.SpeechSource {
  try(RandomAccessFile in=new RandomAccessFile(file,"r")){
  if(in.readInt()!=0x52494646)throw new IOException("WAV không hợp lệ");in.skipBytes(4);if(in.readInt()!=0x57415645)throw new IOException("WAV không hợp lệ");
  int rate=0,channels=0,bits=0,format=0;byte[] data=null;
- while(in.getFilePointer()+8<=in.length()){int tag=in.readInt();long size=Integer.toUnsignedLong(Integer.reverseBytes(in.readInt()));long next=in.getFilePointer()+size;if(next>in.length())throw new IOException("WAV thiếu dữ liệu");
- if(tag==0x666d7420&&size>=16){format=Short.toUnsignedInt(Short.reverseBytes(in.readShort()));channels=Short.toUnsignedInt(Short.reverseBytes(in.readShort()));rate=Integer.reverseBytes(in.readInt());in.skipBytes(6);bits=Short.toUnsignedInt(Short.reverseBytes(in.readShort()));}
+ while(in.getFilePointer()+8<=in.length()){int tag=in.readInt();long size=(Integer.reverseBytes(in.readInt())&0xffffffffL);long next=in.getFilePointer()+size;if(next>in.length())throw new IOException("WAV thiếu dữ liệu");
+ if(tag==0x666d7420&&size>=16){format=(Short.reverseBytes(in.readShort())&0xffff);channels=(Short.reverseBytes(in.readShort())&0xffff);rate=Integer.reverseBytes(in.readInt());in.skipBytes(6);bits=(Short.reverseBytes(in.readShort())&0xffff);}
  else if(tag==0x64617461){if(size>10000000)throw new IOException("Câu thoại quá dài");data=new byte[(int)size];in.readFully(data);}
  in.seek(Math.min(in.length(),next+(size&1)));}
- if(format!=1||bits!=16||channels<1||channels>2||rate<8000||rate>96000||data==null||data.length<channels*2)throw new IOException("Định dạng PCM không hỗ trợ");
+ if(format!=1||bits!=16||channels<1||channels>2||rate<8000||rate>96000||data==null||data.length<channels*2||data.length%(channels*2)!=0)throw new IOException("Định dạng PCM không hỗ trợ");
  int frames=data.length/(channels*2),count=(int)Math.max(1,(long)frames*AiVoice.RATE/rate);byte[] out=new byte[count*2];
  for(int i=0;i<count;i++){double pos=(double)i*rate/AiVoice.RATE;int a=Math.min(frames-1,(int)pos),b=Math.min(frames-1,a+1);int sample=(int)Math.round(sample(data,a,channels)+(sample(data,b,channels)-sample(data,a,channels))*(pos-a));out[2*i]=(byte)sample;out[2*i+1]=(byte)(sample>>8);}return out;
  }}
