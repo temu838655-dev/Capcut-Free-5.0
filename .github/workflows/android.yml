@@ -48,7 +48,7 @@ jobs:
           disable-animations: true
           script: bash .github/scripts/smoke.sh
   publish-preview:
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_preview && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && ((github.event_name == 'workflow_dispatch' && inputs.publish_preview) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[publish-preview]')))
     needs: [build, smoke]
     runs-on: ubuntu-latest
     permissions:
