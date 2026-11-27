@@ -6,6 +6,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 final class VideoMux {
  static void replaceAudio(Context context,Uri video,Uri audio,Uri target)throws Exception{
+ if(target.equals(video)||target.equals(audio))throw new IOException("Tệp xuất không được trùng tệp nguồn");
  File temp=File.createTempFile("video-",".mp4",context.getCacheDir());MediaExtractor ve=new MediaExtractor(),ae=new MediaExtractor();MediaMuxer mux=null;
  try{
  ve.setDataSource(context,video,null);ae.setDataSource(context,audio,null);
@@ -26,7 +27,7 @@ final class VideoMux {
  }
  static void copy(MediaExtractor e,MediaMuxer m,int track,long limit)throws IOException{
  ByteBuffer buffer=ByteBuffer.allocateDirect(16*1024*1024);MediaCodec.BufferInfo info=new MediaCodec.BufferInfo();long first=e.getSampleTime();int written=0;if(first<0)throw new IOException("Track rỗng");
- while(e.getSampleTime()>=0){long time=e.getSampleTime()-first;if(time>=limit)break;if(android.os.Build.VERSION.SDK_INT>=28){long sampleSize=e.getSampleSize();if(sampleSize>64L*1024*1024)throw new IOException("Khung dữ liệu vượt 64 MB");if(sampleSize>buffer.capacity())buffer=ByteBuffer.allocateDirect((int)sampleSize);}buffer.clear();int size=e.readSampleData(buffer,0);if(size<0)throw new IOException("Không đọc được khung dữ liệu");if(size==0)throw new IOException("Khung dữ liệu rỗng");if(size>buffer.capacity())throw new IOException("Khung dữ liệu quá lớn");int flags=e.getSampleFlags();if(android.os.Build.VERSION.SDK_INT>=26&&(flags&MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)throw new IOException("Không hỗ trợ khung dữ liệu phân mảnh");if((flags&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw new IOException("Không hỗ trợ nội dung mã hóa");info.set(0,size,time,(flags&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);m.writeSampleData(track,buffer,info);written++;e.advance();}
+ while(e.getSampleTime()>=0){long time=e.getSampleTime()-first;if(time>=limit)break;if(android.os.Build.VERSION.SDK_INT>=28){long sampleSize=e.getSampleSize();if(sampleSize>64L*1024*1024)throw new IOException("Khung dữ liệu vượt 64 MB");if(sampleSize>buffer.capacity())buffer=ByteBuffer.allocateDirect((int)sampleSize);}buffer.clear();int size=e.readSampleData(buffer,0);if(size<0)throw new IOException("Không đọc được khung dữ liệu");if(size==0)throw new IOException("Khung dữ liệu rỗng");if(size>buffer.capacity())throw new IOException("Khung dữ liệu quá lớn");int flags=e.getSampleFlags();if(android.os.Build.VERSION.SDK_INT>=26&&(flags&MediaExtractor.SAMPLE_FLAG_PARTIAL_FRAME)!=0)throw new IOException("Không hỗ trợ khung dữ liệu phân mảnh");if((flags&MediaExtractor.SAMPLE_FLAG_ENCRYPTED)!=0)throw new IOException("Không hỗ trợ nội dung mã hóa");info.set(0,size,time,(flags&MediaExtractor.SAMPLE_FLAG_SYNC)!=0?MediaCodec.BUFFER_FLAG_KEY_FRAME:0);buffer.position(0);buffer.limit(size);m.writeSampleData(track,buffer,info);written++;e.advance();}
  if(written==0)throw new IOException("Track không có dữ liệu trong khoảng xuất");
  }
 }
