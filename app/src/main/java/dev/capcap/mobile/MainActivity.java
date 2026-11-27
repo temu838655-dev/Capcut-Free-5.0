@@ -27,6 +27,7 @@ public class MainActivity extends Activity {
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(root,"Timeline • chỉnh từng câu",()->timeline());
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
+ button(root,"Xuất MP4 • thay âm thanh AAC",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}pick("audio/*",7);});
  button(root,"Xuất giọng AI WAV",()->exportVoice());
  button(root,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
  Switch narration=new Switch(this);narration.setText("Thuyết minh đồng bộ video");root.addView(narration);narration.setOnCheckedChangeListener((v,on)->{narrate=on;lastSpoken="";if(!on&&tts!=null)tts.stop();});
@@ -63,6 +64,12 @@ public class MainActivity extends Activity {
  Toast.makeText(this,"Đang nhận diện lời thoại...",Toast.LENGTH_LONG).show();
  new Thread(()->{try{String result;if(fromVideo){File audio=AudioExtract.extract(this,uri);try{result=Whisper.transcribe(this,android.net.Uri.fromFile(audio),token,"audio/mp4");}finally{if(!audio.delete())audio.deleteOnExit();}}else result=Whisper.transcribe(this,uri,token);runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Whisper thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }).show();
+ }
+ android.net.Uri muxAudio,muxVideo;
+ void exportMux(android.net.Uri target){
+ final android.net.Uri source=muxVideo,audio=muxAudio;muxVideo=null;muxAudio=null;if(source==null||audio==null)return;
+ Toast.makeText(this,"Đang xuất MP4...",Toast.LENGTH_LONG).show();
+ new Thread(()->{try{VideoMux.replaceAudio(this,source,audio,target);runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Đã xuất MP4",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Xuất MP4 thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }
  String voiceKey,voiceName;java.util.List<Srt.Cue> voiceCues;
  void exportVoice(){
@@ -129,6 +136,8 @@ public class MainActivity extends Activity {
  @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(code==6&&(result!=RESULT_OK||data==null||data.getData()==null)){voiceKey=null;voiceCues=null;}if(result!=RESULT_OK||data==null||data.getData()==null)return;
  try{if(code==1){lastSpoken="";lastPosition=-1;selectedVideo=data.getData();getContentResolver().takePersistableUriPermission(selectedVideo,Intent.FLAG_GRANT_READ_URI_PERMISSION);getPreferences(MODE_PRIVATE).edit().putString("video",selectedVideo.toString()).apply();video.setVideoURI(selectedVideo);video.start();}
  else if(code==2){try(InputStream in=getContentResolver().openInputStream(data.getData());ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2000000)throw new IOException("Tệp quá lớn");out.write(buf,0,n);}subtitles.setText(new String(out.toByteArray(),StandardCharsets.UTF_8));}}
+ else if(code==7){muxVideo=selectedVideo;muxAudio=data.getData();Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("video/mp4");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"dubbed.mp4");startActivityForResult(i,8);}
+ else if(code==8){exportMux(data.getData());}
  else if(code==6){renderVoice(data.getData());}
  else if(code==5){transcribe(data.getData(),false);}
  else if(code==4){recognizeImage(data.getData());}
