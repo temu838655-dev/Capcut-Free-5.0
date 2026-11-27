@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
  button(exports,"Xuất gói chuyển dự án (ZIP)",()->{try{if(selectedVideo==null)throw new IOException("Chọn video trước");Srt.parse(subtitles.getText().toString());Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/zip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"capcap-project.zip");startActivityForResult(i,11);}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
  button(exports,"Xuất giọng AI WAV",()->exportVoice());
  LinearLayout speech=page(root,"04  •  THUYẾT MINH");
+ button(speech,"Chọn giọng Việt offline miễn phí",()->chooseOfflineVoice());
  button(speech,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
  Switch narration=new Switch(this);narration.setText("Thuyết minh đồng bộ video");speech.addView(narration);narration.setOnCheckedChangeListener((v,on)->{narrate=on;lastSpoken="";if(!on&&tts!=null)tts.stop();});
  button(speech,"Dừng đọc",()->{narration.setChecked(false);if(tts!=null)tts.stop();});
@@ -52,6 +53,14 @@ public class MainActivity extends Activity {
  if(lastPosition>=0&&Math.abs(position-lastPosition)>1000){lastSpoken="";if(narrate&&tts!=null)tts.stop();}
  if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty())tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"cue-"+position);}}else if(narrate&&tts!=null){tts.stop();lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
+ void chooseOfflineVoice(){
+ if(tts==null||!voiceReady){Toast.makeText(this,"Hãy cài dữ liệu giọng tiếng Việt trong cài đặt TTS Android",Toast.LENGTH_LONG).show();return;}
+ java.util.List<android.speech.tts.Voice> available=new java.util.ArrayList<>();java.util.Set<android.speech.tts.Voice> installed=tts.getVoices();if(installed!=null)for(android.speech.tts.Voice v:installed)if("vi".equals(v.getLocale().getLanguage())&&!v.isNetworkConnectionRequired()&&!v.getFeatures().contains("notInstalled"))available.add(v);
+ java.util.Collections.sort(available,(a,b)->Integer.compare(b.getQuality(),a.getQuality()));
+ if(available.isEmpty()){new android.app.AlertDialog.Builder(this).setMessage("Chưa có giọng Việt offline. Hãy tải dữ liệu giọng từ engine TTS Android.").setPositiveButton("Cài giọng",(d,w)->{try{startActivity(new Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA));}catch(Exception e){Toast.makeText(this,"Mở cài đặt TTS Android thủ công",Toast.LENGTH_LONG).show();}}).setNegativeButton("Đóng",null).show();return;}
+ String[] labels=new String[available.size()];for(int i=0;i<labels.length;i++)labels[i]=available.get(i).getName()+" • "+available.get(i).getLocale().toString();
+ new android.app.AlertDialog.Builder(this).setTitle("Giọng Việt offline • không cần API").setItems(labels,(d,w)->{if(tts.setVoice(available.get(w))==android.speech.tts.TextToSpeech.SUCCESS){tts.speak("Xin chào! Đây là giọng tiếng Việt miễn phí.",android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"offline-preview");}}).setNegativeButton("Đóng",null).show();
+ }
  @Override protected void onDestroy(){stopVoicePreview();handler.removeCallbacks(tick);if(activeMix!=null)activeMix.cancel();if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
  java.util.List<android.net.Uri> batchSources;
  void batchPick(Intent data){java.util.ArrayList<android.net.Uri> list=new java.util.ArrayList<>();android.content.ClipData clip=data.getClipData();if(clip!=null){for(int i=0;i<clip.getItemCount();i++){android.net.Uri u=clip.getItemAt(i).getUri();if(u!=null&&!list.contains(u))list.add(u);}}else if(data.getData()!=null)list.add(data.getData());if(list.isEmpty())return;if(list.size()>30){Toast.makeText(this,"Tối đa 30 video mỗi lượt",Toast.LENGTH_LONG).show();return;}batchSources=list;startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE),14);}
