@@ -19,6 +19,7 @@ public class MainActivity extends Activity {
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT"); root.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(root,"Whisper • nhận diện video đang mở",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}transcribe(selectedVideo,true);});
  button(root,"Whisper • tạo phụ đề từ tệp âm thanh",()->pick("audio/*",5));
+ button(root,"OCR phụ đề video",()->scanVideo());
  button(root,"OCR ảnh phụ đề",()->pick("image/*",4));
  button(root,"Dịch AI OpenAI",()->aiTranslate(false));
  button(root,"Dịch AI Gemini",()->aiTranslate(true));
@@ -44,6 +45,13 @@ public class MainActivity extends Activity {
  Toast.makeText(this,"Đang nhận diện lời thoại...",Toast.LENGTH_LONG).show();
  new Thread(()->{try{String result;if(fromVideo){File audio=AudioExtract.extract(this,uri);try{result=Whisper.transcribe(this,android.net.Uri.fromFile(audio),token,"audio/mp4");}finally{if(!audio.delete())audio.deleteOnExit();}}else result=Whisper.transcribe(this,uri,token);runOnUiThread(()->{if(isDestroyed())return;if(snapshot.equals(subtitles.getText().toString())){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Phụ đề đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(!isDestroyed())Toast.makeText(this,"Whisper thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }).show();
+ }
+ void scanVideo(){
+ if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}
+ final android.net.Uri uri=selectedVideo;final String snapshot=subtitles.getText().toString();
+ java.util.concurrent.atomic.AtomicBoolean cancel=new java.util.concurrent.atomic.AtomicBoolean(false);
+ android.app.ProgressDialog progress=new android.app.ProgressDialog(this);progress.setTitle("OCR video");progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);progress.setMax(100);progress.setCancelable(false);progress.setButton(android.content.DialogInterface.BUTTON_NEGATIVE,"Hủy",(d,w)->cancel.set(true));progress.show();
+ new Thread(()->{try{String result=VideoOcr.scan(this,uri,cancel,n->runOnUiThread(()->{if(!isDestroyed())progress.setProgress(n);}));runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(cancel.get())return;if(snapshot.equals(subtitles.getText().toString())&&uri.equals(selectedVideo)){cues=Srt.parse(result);subtitles.setText(result);}else Toast.makeText(this,"Dự án đã thay đổi; không ghi đè",Toast.LENGTH_LONG).show();});}catch(Exception e){runOnUiThread(()->{if(isDestroyed())return;progress.dismiss();if(!cancel.get())Toast.makeText(this,"OCR thất bại: "+e.getMessage(),Toast.LENGTH_LONG).show();});}}).start();
  }
  void recognizeImage(android.net.Uri uri){
  try{
