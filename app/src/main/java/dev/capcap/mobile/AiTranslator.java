@@ -23,7 +23,7 @@ final class AiTranslator {
  int status=c.getResponseCode();if(status!=200)throw new IOException("HTTP "+status);
  ByteArrayOutputStream bytes=new ByteArrayOutputStream();try(InputStream in=c.getInputStream()){byte[] b=new byte[8192];int n;while((n=in.read(b))!=-1){if(bytes.size()+n>2000000)throw new IOException("Phản hồi quá lớn");bytes.write(b,0,n);}}
  JSONObject response=new JSONObject(new String(bytes.toByteArray(),StandardCharsets.UTF_8));String content=gemini?response.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts").getJSONObject(0).getString("text"):response.getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content");JSONArray translations=new JSONObject(content).getJSONArray("translations");if(translations.length()!=end-start)throw new IOException("Số câu dịch không khớp");
- for(int i=start;i<end;i++){Srt.Cue cue=cues.get(i);String translated=translations.getString(i-start).trim().replaceAll("[\\r\\n]+"," ");if(translated.isEmpty())throw new IOException("Câu dịch trống");result.append(i+1).append('\n').append(Srt.format(cue.start)).append(" --> ").append(Srt.format(cue.end)).append('\n').append(translated).append("\n\n");}
+ for(int i=start;i<end;i++){Srt.Cue cue=cues.get(i);Object value=translations.get(i-start);if(!(value instanceof String))throw new IOException("Câu dịch không phải văn bản tại dòng "+(i+1));String translated=((String)value).trim().replaceAll("[\\r\\n]+"," ");if(translated.isEmpty())throw new IOException("Câu dịch trống tại dòng "+(i+1));result.append(i+1).append('\n').append(Srt.format(cue.start)).append(" --> ").append(Srt.format(cue.end)).append('\n').append(translated).append("\n\n");}
  }finally{c.disconnect();}
  }return result.toString();
  }
