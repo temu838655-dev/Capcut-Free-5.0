@@ -16,7 +16,7 @@ public class MainActivity extends Activity {
  MediaController controls=new MediaController(this); video.setMediaController(controls);
  caption=new TextView(this); caption.setTextSize(20);caption.setTextColor(0xffe0f9ff);caption.setGravity(android.view.Gravity.CENTER); project.addView(caption);
  button(project,"Chọn video",()->pick("video/*",1));
- button(project,"Nhập phụ đề SRT",()->pick("*/*",2));
+ button(project,"Nhập phụ đề SRT",()->pick("*/*",2));button(project,"Lưu dự án có tên",()->saveNamed());button(project,"Mở / quản lý dự án",()->openNamed());
  LinearLayout ai=page(root,"02  •  PHỤ ĐỀ & AI");
  subtitles=new EditText(this); subtitles.setGravity(android.view.Gravity.TOP); subtitles.setHint("Nhập hoặc chỉnh sửa phụ đề SRT");subtitles.setTextColor(0xfff5f7ff);subtitles.setHintTextColor(0xff9ba9c7);subtitles.setBackground(panel(0xff202638,16));subtitles.setPadding(dp(14),dp(12),dp(14),dp(12)); ai.addView(subtitles,new LinearLayout.LayoutParams(-1,0,2));
  button(ai,"Whisper • nhận diện video đang mở",()->{if(selectedVideo==null){Toast.makeText(this,"Chọn video trước",Toast.LENGTH_SHORT).show();return;}transcribe(selectedVideo,true);});
@@ -48,6 +48,13 @@ public class MainActivity extends Activity {
  if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty())tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"cue-"+position);}}else if(narrate&&tts!=null){tts.stop();lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
  @Override protected void onDestroy(){handler.removeCallbacks(tick);if(activeMix!=null)activeMix.cancel();if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+ void saveNamed(){
+ EditText name=new EditText(this);name.setHint("Tên dự án");new android.app.AlertDialog.Builder(this).setTitle("Lưu dự án").setView(name).setNegativeButton("Hủy",null).setPositiveButton("Lưu",(d,w)->{try{String n=name.getText().toString().trim();if(n.isEmpty()||n.length()>100)throw new IOException("Tên dự án không hợp lệ");org.json.JSONObject item=new org.json.JSONObject();item.put("video",selectedVideo==null?"":selectedVideo.toString());item.put("srt",subtitles.getText().toString());getSharedPreferences("projects",MODE_PRIVATE).edit().putString(n,item.toString()).apply();Toast.makeText(this,"Đã lưu "+n,Toast.LENGTH_SHORT).show();}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}}).show();
+ }
+ void openNamed(){
+ android.content.SharedPreferences store=getSharedPreferences("projects",MODE_PRIVATE);String[] names=store.getAll().keySet().toArray(new String[0]);java.util.Arrays.sort(names);if(names.length==0){Toast.makeText(this,"Chưa có dự án đã lưu",Toast.LENGTH_SHORT).show();return;}
+ new android.app.AlertDialog.Builder(this).setTitle("Dự án đã lưu").setItems(names,(d,i)->new android.app.AlertDialog.Builder(this).setTitle(names[i]).setNegativeButton("Hủy",null).setNeutralButton("Xóa",(q,k)->new android.app.AlertDialog.Builder(this).setMessage("Xóa dự án "+names[i]+"?").setNegativeButton("Hủy",null).setPositiveButton("Xóa",(z,j)->store.edit().remove(names[i]).apply()).show()).setPositiveButton("Mở",(q,k)->{try{org.json.JSONObject item=new org.json.JSONObject(store.getString(names[i],""));String raw=item.getString("srt");java.util.List<Srt.Cue> parsed=Srt.parse(raw);video.stopPlayback();lastSpoken="";lastPosition=-1;String uri=item.getString("video");selectedVideo=uri.isEmpty()?null:android.net.Uri.parse(uri);if(selectedVideo!=null)video.setVideoURI(selectedVideo);subtitles.setText(raw);cues=parsed;getPreferences(MODE_PRIVATE).edit().putString("draft",raw).putString("video",uri).apply();}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}}).show()).setNegativeButton("Đóng",null).show();
+ }
  void timeline(){
  final java.util.List<Srt.Cue> list;try{list=Srt.parse(subtitles.getText().toString());}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
  if(list.isEmpty()){Toast.makeText(this,"Chưa có phụ đề",Toast.LENGTH_SHORT).show();return;}
