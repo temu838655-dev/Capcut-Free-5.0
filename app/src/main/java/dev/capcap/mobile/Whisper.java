@@ -13,7 +13,8 @@ final class Whisper {
  File temp=File.createTempFile("speech-",".audio",context.getCacheDir());
  try{
 
- String ext="audio/mpeg".equals(mime)?"mp3":"audio/wav".equals(mime)||"audio/x-wav".equals(mime)?"wav":"audio/mp4".equals(mime)||"audio/x-m4a".equals(mime)?"m4a":"audio/webm".equals(mime)?"webm":"audio/flac".equals(mime)?"flac":null;
+ mime=mime==null?"":mime.split(";",2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+ String ext="audio/mpeg".equals(mime)||"audio/mp3".equals(mime)?"mp3":"audio/wav".equals(mime)||"audio/x-wav".equals(mime)||"audio/wave".equals(mime)?"wav":"audio/mp4".equals(mime)||"audio/x-m4a".equals(mime)||"audio/m4a".equals(mime)?"m4a":"audio/webm".equals(mime)?"webm":"audio/flac".equals(mime)||"audio/x-flac".equals(mime)?"flac":null;
  if(ext==null)throw new IOException("Hỗ trợ MP3, WAV, M4A, WebM, FLAC");
  try(InputStream in=context.getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(temp)){if(in==null)throw new IOException("Không đọc được âm thanh");byte[] b=new byte[8192];int n;long size=0;while((n=in.read(b))!=-1){size+=n;if(size>24000000)throw new IOException("Âm thanh vượt 24 MB");out.write(b,0,n);}}
  if(temp.length()==0)throw new IOException("Tệp rỗng");
