@@ -25,6 +25,7 @@ public class MainActivity extends Activity {
  button(root,"Dịch AI Gemini",()->aiTranslate(true));
  button(root,"Dịch máy sang tiếng Việt",()->translate());
  button(root,"Áp dụng phụ đề vào xem trước",()->{try{cues=Srt.parse(subtitles.getText().toString());Toast.makeText(this,"Đã nạp "+cues.size()+" câu",Toast.LENGTH_SHORT).show();}catch(IllegalArgumentException e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}});
+ button(root,"Timeline • chỉnh từng câu",()->timeline());
  button(root,"Lưu phụ đề SRT",()->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.setType("application/x-subrip");i.addCategory(Intent.CATEGORY_OPENABLE);i.putExtra(Intent.EXTRA_TITLE,"subtitles.srt");startActivityForResult(i,3);});
  button(root,"Xuất giọng AI WAV",()->exportVoice());
  button(root,"Đọc phụ đề tiếng Việt",()->{if(!voiceReady){Toast.makeText(this,"Giọng tiếng Việt chưa sẵn sàng",Toast.LENGTH_SHORT).show();return;} String text=subtitles.getText().toString().replaceAll("(?m)^\\s*\\d+\\s*$","").replaceAll("(?m)^.*-->.*$","").trim(); if(!text.isEmpty())tts.speak(text,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"preview");});
@@ -39,6 +40,22 @@ public class MainActivity extends Activity {
  if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty())tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,"cue-"+position);}}else if(narrate&&tts!=null){tts.stop();lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
  @Override protected void onDestroy(){handler.removeCallbacks(tick);if(tts!=null){tts.stop();tts.shutdown();}super.onDestroy();}
+ void timeline(){
+ final java.util.List<Srt.Cue> list;try{list=Srt.parse(subtitles.getText().toString());}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
+ if(list.isEmpty()){Toast.makeText(this,"Chưa có phụ đề",Toast.LENGTH_SHORT).show();return;}
+ String[] rows=new String[list.size()];for(int i=0;i<rows.length;i++){Srt.Cue c=list.get(i);rows[i]=Srt.format(c.start)+" → "+Srt.format(c.end)+"\n"+c.text;}
+ new android.app.AlertDialog.Builder(this).setTitle("Timeline • "+rows.length+" câu").setItems(rows,(d,i)->editCue(list,i)).setNegativeButton("Đóng",null).show();
+ }
+ void editCue(java.util.List<Srt.Cue> list,int index){
+ Srt.Cue cue=list.get(index);LinearLayout fields=new LinearLayout(this);fields.setOrientation(LinearLayout.VERTICAL);
+ EditText start=new EditText(this),end=new EditText(this),body=new EditText(this);start.setHint("Bắt đầu (ms)");end.setHint("Kết thúc (ms)");start.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);end.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);start.setText(Long.toString(cue.start));end.setText(Long.toString(cue.end));body.setText(cue.text);fields.addView(start);fields.addView(end);fields.addView(body);
+ if(selectedVideo!=null)video.seekTo((int)Math.min(Integer.MAX_VALUE,cue.start));
+ android.app.AlertDialog dialog=new android.app.AlertDialog.Builder(this).setTitle("Chỉnh câu "+(index+1)).setView(fields).setNegativeButton("Hủy",null).setNeutralButton("Xóa",(d,w)->{list.remove(index);saveTimeline(list);}).setPositiveButton("Lưu",null).create();
+ dialog.setOnShowListener(d->dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).setOnClickListener(v->{try{long s=Long.parseLong(start.getText().toString()),e=Long.parseLong(end.getText().toString());String text=body.getText().toString().trim();if(s<0||e<=s||e>Integer.MAX_VALUE||text.isEmpty())throw new IllegalArgumentException("Thời gian hoặc nội dung không hợp lệ");String raw="1\n"+Srt.format(s)+" --> "+Srt.format(e)+"\n"+text+"\n\n";java.util.List<Srt.Cue> parsed=Srt.parse(raw);if(parsed.size()!=1)throw new IllegalArgumentException("Chỉ nhập một câu");list.set(index,parsed.get(0));saveTimeline(list);dialog.dismiss();}catch(Exception ex){body.setError(ex.getMessage());}}));dialog.show();
+ }
+ void saveTimeline(java.util.List<Srt.Cue> list){
+ java.util.Collections.sort(list,(a,b)->Long.compare(a.start,b.start));StringBuilder out=new StringBuilder();for(int i=0;i<list.size();i++){Srt.Cue c=list.get(i);out.append(i+1).append('\n').append(Srt.format(c.start)).append(" --> ").append(Srt.format(c.end)).append('\n').append(c.text).append("\n\n");}subtitles.setText(out.toString());cues=Srt.parse(out.toString());getPreferences(MODE_PRIVATE).edit().putString("draft",out.toString()).apply();
+ }
  void transcribe(android.net.Uri uri,boolean fromVideo){
  EditText key=new EditText(this);key.setHint("API key OpenAI");key.setInputType(android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
  new android.app.AlertDialog.Builder(this).setTitle("Whisper • gửi âm thanh lên OpenAI, tối đa 24 MB, có thể tính phí").setView(key).setNegativeButton("Hủy",null).setPositiveButton("Tạo phụ đề",(d,w)->{
@@ -109,7 +126,7 @@ public class MainActivity extends Activity {
  void button(LinearLayout root,String label,Runnable action){Button b=new Button(this);b.setText(label);b.setOnClickListener(v->action.run());root.addView(b);}
  void pick(String mime,int code){Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.setType(mime);i.addCategory(Intent.CATEGORY_OPENABLE);startActivityForResult(i,code);}
  @Override protected void onPause(){super.onPause();getPreferences(MODE_PRIVATE).edit().putString("draft",subtitles.getText().toString()).apply();if(video.isPlaying())video.pause();if(tts!=null)tts.stop();}
- @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(result!=RESULT_OK||data==null||data.getData()==null)return;
+ @Override protected void onActivityResult(int code,int result,Intent data){super.onActivityResult(code,result,data);if(code==6&&(result!=RESULT_OK||data==null||data.getData()==null)){voiceKey=null;voiceCues=null;}if(result!=RESULT_OK||data==null||data.getData()==null)return;
  try{if(code==1){lastSpoken="";lastPosition=-1;selectedVideo=data.getData();getContentResolver().takePersistableUriPermission(selectedVideo,Intent.FLAG_GRANT_READ_URI_PERMISSION);getPreferences(MODE_PRIVATE).edit().putString("video",selectedVideo.toString()).apply();video.setVideoURI(selectedVideo);video.start();}
  else if(code==2){try(InputStream in=getContentResolver().openInputStream(data.getData());ByteArrayOutputStream out=new ByteArrayOutputStream()){byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>2000000)throw new IOException("Tệp quá lớn");out.write(buf,0,n);}subtitles.setText(new String(out.toByteArray(),StandardCharsets.UTF_8));}}
  else if(code==6){renderVoice(data.getData());}
