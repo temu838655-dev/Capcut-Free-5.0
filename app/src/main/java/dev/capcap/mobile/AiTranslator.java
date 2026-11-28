@@ -95,7 +95,7 @@ final class AiTranslator {
             BatchResult translated;
 
             try {
-                translated = translateWithKeys(primaryKeys, primaryCursor, batch,
+                translated = translateWithKeys(primaryKeys, primaryCursor, cues, batch,
                         accepted, gemini, model);
                 primaryCursor = translated.nextKey;
             } catch (Exception error) {
@@ -104,7 +104,7 @@ final class AiTranslator {
                 if (fallbackKeys.isEmpty()) throw primaryFailure;
 
                 try {
-                    translated = translateWithKeys(fallbackKeys, fallbackCursor, batch,
+                    translated = translateWithKeys(fallbackKeys, fallbackCursor, cues, batch,
                             accepted, !gemini, fallbackModel);
                     fallbackCursor = translated.nextKey;
                 } catch (Exception fallbackFailure) {
@@ -143,7 +143,8 @@ final class AiTranslator {
     }
 
     private static BatchResult translateWithKeys(List<String> keys, int cursor,
-                                                  List<Srt.Cue> cues,
+                                                  List<Srt.Cue> allCues,
+                                                  List<Srt.Cue> batch,
                                                   List<String> accepted,
                                                   boolean gemini, String model)
             throws Exception {
@@ -157,7 +158,7 @@ final class AiTranslator {
 
             for (int attempt = 0; attempt < MAX_ATTEMPTS_PER_KEY; attempt++) {
                 try {
-                    List<String> result = requestBatch(key, cues, accepted, gemini, model);
+                    List<String> result = requestBatch(key, allCues, batch, accepted, gemini, model);
                     return new BatchResult(result, (index + 1) % keys.size());
                 } catch (Exception failure) {
                     if (failure instanceof InterruptedException) throw failure;
@@ -171,18 +172,17 @@ final class AiTranslator {
         throw new IOException("Không có API key khả dụng");
     }
 
-    private static List<String> requestBatch(String token, List<Srt.Cue> cues,
-                                              List<String> accepted,
+    private static List<String> requestBatch(String token, List<Srt.Cue> allCues,
+                                              List<Srt.Cue> batch, List<String> accepted,
                                               boolean gemini, String model) throws Exception {
         JSONArray input = new JSONArray();
-        for (Srt.Cue cue : cues) input.put(cue.text);
+        for (Srt.Cue cue : batch) input.put(cue.text);
 
         JSONArray context = new JSONArray();
         int contextStart = Math.max(0, accepted.size() - 3);
         for (int i = contextStart; i < accepted.size(); i++) {
-            // The source cue is not available in this compact context list. The
-            // accepted translation is still useful as terminology/style context.
-            context.put(new JSONObject().put("translation", accepted.get(i)));
+            context.put(new JSONObject().put("source", allCues.get(i).text)
+                    .put("translation", accepted.get(i)));
         }
 
         JSONObject payload = new JSONObject()
@@ -249,9 +249,9 @@ final class AiTranslator {
             }
 
             JSONArray translations = new JSONObject(content).getJSONArray("translations");
-            if (translations.length() != cues.size()) {
+            if (translations.length() != batch.size()) {
                 throw new IOException("Số câu dịch không khớp: nhận "
-                        + translations.length() + ", cần " + cues.size());
+                        + translations.length() + ", cần " + batch.size());
             }
 
             List<String> result = new ArrayList<>(cues.size());
