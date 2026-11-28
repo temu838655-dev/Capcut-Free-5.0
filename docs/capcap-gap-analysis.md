@@ -33,6 +33,14 @@ Trạng thái trong tài liệu này dựa trên mã nguồn đã đọc. “Có
 - Gia cố lưu/mở dự án: metadata có phiên bản, ngày lưu, số cue; kiểm tra lại dữ liệu khi mở; thông báo rõ nếu quyền truy cập video đã hết hạn và vẫn khôi phục phụ đề.
 - Các thay đổi trên mới được ghi vào mã nguồn; chưa có kết quả chạy unit test, lint, build hoặc kiểm thử thiết bị trong lượt này.
 
+## Gia cố đồng bộ thuyết minh (mã nguồn, chưa kiểm thử thiết bị)
+
+- TTS phát theo thay đổi nội dung cue, không gọi lặp lại ở mỗi nhịp polling 150 ms.
+- Chỉ bắt đầu cue mới khi TTS đang rảnh; nếu câu trước còn đọc, cue mới bị bỏ qua thay vì cắt ngang hoặc tạo hàng đợi lời thoại trễ.
+- Khi tua video vượt ngưỡng phát hiện, tạm dừng, tắt thuyết minh hoặc đóng Activity, ứng dụng dừng TTS và xóa trạng thái utterance để tránh giữ trạng thái bận cũ.
+- Trạng thái bận được giải phóng qua callback hoàn tất/lỗi của Android TextToSpeech; có đặt trạng thái bận ngay khi gửi yêu cầu để tránh race trước callback `onStart`.
+- Giới hạn còn lại: đây là đồng bộ kiểu best-effort dựa trên `VideoView` và Android TTS, chưa phải time-stretch/phoneme alignment. Câu dài hơn khoảng hiển thị có thể bị bỏ qua hoặc kết thúc sau cue; cần kiểm thử trên nhiều TTS engine và video thực tế trước khi coi là đạt.
+
 ## So sánh năng lực
 
 | Năng lực | CapCap | Capcut-Free-5.0 hiện tại | Khoảng cách |
