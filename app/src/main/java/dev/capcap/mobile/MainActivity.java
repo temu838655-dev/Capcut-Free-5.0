@@ -94,11 +94,91 @@ public class MainActivity extends Activity {
  void batchExtract(android.net.Uri folder){final java.util.List<android.net.Uri> list=batchSources;batchSources=null;if(list==null)return;android.app.ProgressDialog progress=new android.app.ProgressDialog(this);progress.setTitle("Tách âm thanh hàng loạt");progress.setProgressStyle(android.app.ProgressDialog.STYLE_HORIZONTAL);progress.setMax(list.size());java.util.concurrent.atomic.AtomicBoolean cancel=new java.util.concurrent.atomic.AtomicBoolean();progress.setCancelable(false);progress.setButton(android.content.DialogInterface.BUTTON_NEGATIVE,"Dừng",(d,w)->cancel.set(true));progress.show();
  new Thread(()->{int ok=0,failed=0;StringBuilder errors=new StringBuilder();for(int i=0;i<list.size()&&!cancel.get();i++){File temp=null;android.net.Uri output=null;try{temp=AudioExtract.extract(this,list.get(i),Long.MAX_VALUE);android.net.Uri parent=android.provider.DocumentsContract.buildDocumentUriUsingTree(folder,android.provider.DocumentsContract.getTreeDocumentId(folder));output=android.provider.DocumentsContract.createDocument(getContentResolver(),parent,"audio/mp4","audio-"+System.currentTimeMillis()+"-"+(i+1)+".m4a");if(output==null)throw new IOException("Không tạo được tệp");try(InputStream in=new FileInputStream(temp);OutputStream out=getContentResolver().openOutputStream(output,"wt")){if(out==null)throw new IOException("Không mở được tệp");byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1){if(cancel.get())throw new IOException("Đã dừng");out.write(b,0,n);}}ok++;}catch(Exception e){failed++;errors.append("Video ").append(i+1).append(": ").append(e.getMessage()).append('\n');if(output!=null)try{android.provider.DocumentsContract.deleteDocument(getContentResolver(),output);}catch(Exception ignored){}}finally{if(temp!=null)temp.delete();}final int done=i+1;runOnUiThread(()->{if(!isDestroyed())progress.setProgress(done);});}final String result="Thành công: "+ok+" / "+list.size()+"\nLỗi: "+failed+(cancel.get()?"\nĐã dừng":"")+"\n"+errors;runOnUiThread(()->{if(!isDestroyed()){progress.dismiss();new android.app.AlertDialog.Builder(this).setTitle("Kết quả hàng loạt").setMessage(result).setPositiveButton("Đóng",null).show();}});}).start();}
  void saveNamed(){
- EditText name=new EditText(this);name.setHint("Tên dự án");new android.app.AlertDialog.Builder(this).setTitle("Lưu dự án").setView(name).setNegativeButton("Hủy",null).setPositiveButton("Lưu",(d,w)->{try{String n=name.getText().toString().trim();if(n.isEmpty()||n.length()>100)throw new IOException("Tên dự án không hợp lệ");org.json.JSONObject item=new org.json.JSONObject();item.put("video",selectedVideo==null?"":selectedVideo.toString());item.put("srt",subtitles.getText().toString());getSharedPreferences("projects",MODE_PRIVATE).edit().putString(n,item.toString()).apply();Toast.makeText(this,"Đã lưu "+n,Toast.LENGTH_SHORT).show();}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}}).show();
+  EditText name=new EditText(this);
+  name.setHint("Tên dự án");
+  name.setSingleLine(true);
+  new android.app.AlertDialog.Builder(this).setTitle("Lưu dự án").setView(name)
+   .setNegativeButton("Hủy",null).setPositiveButton("Lưu",(d,w)->{
+    try{
+     String projectName=name.getText().toString().trim();
+     if(projectName.isEmpty()||projectName.length()>100)
+      throw new IOException("Tên dự án phải có từ 1 đến 100 ký tự");
+     String raw=subtitles.getText().toString();
+     int bytes=raw.getBytes(StandardCharsets.UTF_8).length;
+     if(bytes>1500000)throw new IOException("Phụ đề quá lớn để lưu an toàn. Hãy tách dự án hoặc giảm dung lượng phụ đề.");
+     java.util.List<Srt.Cue> parsed=Srt.parse(raw);
+     org.json.JSONObject item=new org.json.JSONObject();
+     item.put("schemaVersion",2);
+     item.put("updatedAt",System.currentTimeMillis());
+     item.put("cueCount",parsed.size());
+     item.put("video",selectedVideo==null?"":selectedVideo.toString());
+     item.put("srt",raw);
+     getSharedPreferences("projects",MODE_PRIVATE).edit().putString(projectName,item.toString()).apply();
+     Toast.makeText(this,"Đã lưu dự án • "+parsed.size()+" câu phụ đề",Toast.LENGTH_SHORT).show();
+    }catch(Exception e){Toast.makeText(this,"Không thể lưu dự án: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+   }).show();
  }
+
  void openNamed(){
- android.content.SharedPreferences store=getSharedPreferences("projects",MODE_PRIVATE);String[] names=store.getAll().keySet().toArray(new String[0]);java.util.Arrays.sort(names);if(names.length==0){Toast.makeText(this,"Chưa có dự án đã lưu",Toast.LENGTH_SHORT).show();return;}
- new android.app.AlertDialog.Builder(this).setTitle("Dự án đã lưu").setItems(names,(d,i)->new android.app.AlertDialog.Builder(this).setTitle(names[i]).setNegativeButton("Hủy",null).setNeutralButton("Xóa",(q,k)->new android.app.AlertDialog.Builder(this).setMessage("Xóa dự án "+names[i]+"?").setNegativeButton("Hủy",null).setPositiveButton("Xóa",(z,j)->store.edit().remove(names[i]).apply()).show()).setPositiveButton("Mở",(q,k)->{try{org.json.JSONObject item=new org.json.JSONObject(store.getString(names[i],""));String raw=item.getString("srt");java.util.List<Srt.Cue> parsed=Srt.parse(raw);video.stopPlayback();lastSpoken="";lastPosition=-1;String uri=item.getString("video");selectedVideo=uri.isEmpty()?null:android.net.Uri.parse(uri);if(selectedVideo!=null)video.setVideoURI(selectedVideo);subtitles.setText(raw);cues=parsed;getPreferences(MODE_PRIVATE).edit().putString("draft",raw).putString("video",uri).apply();}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();}}).show()).setNegativeButton("Đóng",null).show();
+  android.content.SharedPreferences store=getSharedPreferences("projects",MODE_PRIVATE);
+  String[] names=store.getAll().keySet().toArray(new String[0]);
+  java.util.Arrays.sort(names,String.CASE_INSENSITIVE_ORDER);
+  if(names.length==0){Toast.makeText(this,"Chưa có dự án đã lưu",Toast.LENGTH_SHORT).show();return;}
+  String[] labels=new String[names.length];
+  for(int i=0;i<names.length;i++){
+   try{
+    org.json.JSONObject item=new org.json.JSONObject(store.getString(names[i],""));
+    int count=item.optInt("cueCount",-1);
+    if(count<0)count=Srt.parse(item.optString("srt","")).size();
+    long updated=item.optLong("updatedAt",0);
+    String date=updated>0?new java.text.SimpleDateFormat("dd/MM/yyyy HH:mm",java.util.Locale.getDefault()).format(new java.util.Date(updated)):"Bản cũ";
+    labels[i]=names[i]+"  •  "+count+" câu  •  "+date;
+   }catch(Exception ignored){labels[i]=names[i]+"  •  Dữ liệu cần kiểm tra";}
+  }
+  new android.app.AlertDialog.Builder(this).setTitle("Dự án đã lưu").setItems(labels,(d,index)->{
+   final String projectName=names[index];
+   new android.app.AlertDialog.Builder(this).setTitle(projectName)
+    .setMessage("Bạn muốn mở hay xóa dự án này?")
+    .setNegativeButton("Đóng",null)
+    .setNeutralButton("Xóa",(q,k)->new android.app.AlertDialog.Builder(this)
+     .setMessage("Xóa vĩnh viễn dự án "+projectName+"?")
+     .setNegativeButton("Hủy",null)
+     .setPositiveButton("Xóa",(z,j)->{
+      store.edit().remove(projectName).apply();
+      Toast.makeText(this,"Đã xóa dự án",Toast.LENGTH_SHORT).show();
+     }).show())
+    .setPositiveButton("Mở",(q,k)->{
+     try{
+      String stored=store.getString(projectName,null);
+      if(stored==null)throw new IOException("Dự án không còn tồn tại");
+      org.json.JSONObject item=new org.json.JSONObject(stored);
+      String raw=item.getString("srt");
+      if(raw.getBytes(StandardCharsets.UTF_8).length>1500000)
+       throw new IOException("Dữ liệu dự án vượt giới hạn an toàn");
+      java.util.List<Srt.Cue> parsed=Srt.parse(raw);
+      String uriText=item.optString("video","");
+      android.net.Uri restored=uriText.isEmpty()?null:android.net.Uri.parse(uriText);
+      boolean videoPermission=true;
+      if(restored!=null&&"content".equals(restored.getScheme())){
+       videoPermission=false;
+       for(android.content.UriPermission permission:getContentResolver().getPersistedUriPermissions()){
+        if(restored.equals(permission.getUri())&&permission.isReadPermission()){videoPermission=true;break;}
+       }
+      }
+      video.stopPlayback();
+      lastSpoken="";
+      lastPosition=-1;
+      selectedVideo=restored;
+      if(selectedVideo!=null&&videoPermission)video.setVideoURI(selectedVideo);
+      subtitles.setText(raw);
+      cues=parsed;
+      getPreferences(MODE_PRIVATE).edit().putString("draft",raw).putString("video",uriText).apply();
+      if(selectedVideo!=null&&!videoPermission)
+       Toast.makeText(this,"Đã mở phụ đề. Hãy chọn lại video vì quyền truy cập tệp đã hết hạn.",Toast.LENGTH_LONG).show();
+      else Toast.makeText(this,"Đã mở dự án • "+parsed.size()+" câu phụ đề",Toast.LENGTH_SHORT).show();
+     }catch(Exception e){Toast.makeText(this,"Không thể mở dự án: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+    }).show();
+  }).setNegativeButton("Đóng",null).show();
  }
  void timeline(){
  final java.util.List<Srt.Cue> list;try{list=Srt.parse(subtitles.getText().toString());}catch(Exception e){Toast.makeText(this,e.getMessage(),Toast.LENGTH_LONG).show();return;}
