@@ -17,8 +17,8 @@ public class AiTranslatorTest {
 
     @Test public void partialResultKeepsUntranslatedCuesAndTimestamps() {
         java.util.List<Srt.Cue> source = Srt.parse(
-                "1\\n00:00:01,000 --> 00:00:02,000\\nHello\\n\\n"
-                + "2\\n00:00:02,000 --> 00:00:03,000\\nGoodbye");
+                "1\n00:00:01,000 --> 00:00:02,000\nHello\n\n"
+                + "2\n00:00:02,000 --> 00:00:03,000\nGoodbye");
         String partial = AiTranslator.buildPartialSrt(source, Arrays.asList("Xin chào"));
         java.util.List<Srt.Cue> restored = Srt.parse(partial);
         assertEquals(2, restored.size());
