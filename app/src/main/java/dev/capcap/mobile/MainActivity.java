@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
  }
  final Runnable tick=new Runnable(){public void run(){int position=video.getCurrentPosition();String current=Srt.at(cues,position);caption.setText(current);
  if(lastPosition>=0&&Math.abs(position-lastPosition)>1000){lastSpoken="";if(narrate&&tts!=null){tts.stop();narrationBusy=false;activeNarrationId="";}}
- if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty()&&!narrationBusy){String id="narration-"+position+"-"+System.nanoTime();activeNarrationId=id;int result=tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,id);if(result==android.speech.tts.TextToSpeech.ERROR){narrationBusy=false;activeNarrationId="";}}}}else if(narrate&&tts!=null){tts.stop();narrationBusy=false;activeNarrationId="";lastSpoken="";}
+ if(narrate&&voiceReady&&video.isPlaying()){if(!current.equals(lastSpoken)){lastSpoken=current;if(!current.isEmpty()&&!narrationBusy){String id="narration-"+position+"-"+System.nanoTime();activeNarrationId=id;narrationBusy=true;int result=tts.speak(current,android.speech.tts.TextToSpeech.QUEUE_FLUSH,null,id);if(result==android.speech.tts.TextToSpeech.ERROR){narrationBusy=false;activeNarrationId="";}}}}else if(narrate&&tts!=null){tts.stop();narrationBusy=false;activeNarrationId="";lastSpoken="";}
  lastPosition=position;handler.postDelayed(this,150);}};
  String offlineExportVoice;java.util.List<Srt.Cue> offlineExportCues;boolean offlineExportRunning;
  void pickOfflineMp4(){
