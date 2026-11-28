@@ -168,11 +168,11 @@ public class MainActivity extends Activity {
       video.stopPlayback();
       lastSpoken="";
       lastPosition=-1;
-      selectedVideo=restored;
-      if(selectedVideo!=null&&videoPermission)video.setVideoURI(selectedVideo);
+      selectedVideo=videoPermission?restored:null;
+      if(selectedVideo!=null)video.setVideoURI(selectedVideo);
       subtitles.setText(raw);
       cues=parsed;
-      getPreferences(MODE_PRIVATE).edit().putString("draft",raw).putString("video",uriText).apply();
+      getPreferences(MODE_PRIVATE).edit().putString("draft",raw).putString("video",selectedVideo==null?"":selectedVideo.toString()).apply();
       if(selectedVideo!=null&&!videoPermission)
        Toast.makeText(this,"Đã mở phụ đề. Hãy chọn lại video vì quyền truy cập tệp đã hết hạn.",Toast.LENGTH_LONG).show();
       else Toast.makeText(this,"Đã mở dự án • "+parsed.size()+" câu phụ đề",Toast.LENGTH_SHORT).show();
