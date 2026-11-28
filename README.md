@@ -20,7 +20,7 @@ An independent Android video subtitle and dubbing workspace inspired by the work
 - On-device ML Kit translation after its language model is downloaded.
 - OpenAI TTS and Android-installed offline Vietnamese TTS voices.
 - WAV voice rendering, audio extraction, audio replacement/mixing, and MP4 export using Android media APIs.
-- Local named projects and ZIP project bundles.
+- Local named projects and ZIP project bundles; named projects record a schema version, save time, subtitle count, video URI, and subtitle data. Restore validates subtitle content and handles expired video-file permissions without discarding the subtitles.
 
 ## Current limitations
 
@@ -29,6 +29,7 @@ An independent Android video subtitle and dubbing workspace inspired by the work
 - Dedicated source separation (Vocals/BGM), per-character voice assignment, and a full offline neural TTS engine are not yet implemented.
 - AI translation and cloud TTS send the selected text/audio to the configured provider. If a fallback provider is configured, subtitle text may also be sent to that provider.
 - Android TTS offline voice availability depends on the speech engines and Vietnamese voice data installed on the device.
+- Named projects currently use Android SharedPreferences and are capped at 1.5 MB of UTF-8 subtitle text per project; a dedicated database/file-backed project library with autosave history is still future work.
 - A successful GitHub commit is not proof of a working APK. Production release requires CI and device verification.
 
 ## Build and verification
