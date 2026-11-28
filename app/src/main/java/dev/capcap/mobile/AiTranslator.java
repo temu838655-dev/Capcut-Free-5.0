@@ -80,7 +80,7 @@ final class AiTranslator {
         }
 
         StringBuilder output = new StringBuilder();
-        List<String> accepted = new ArrayList<>(cues.size());
+        List<String> accepted = new ArrayList<>(batch.size());
         int primaryCursor = 0;
         int fallbackCursor = 0;
 
