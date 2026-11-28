@@ -95,28 +95,37 @@ final class AiTranslator {
             BatchResult translated;
 
             try {
-                translated = translateWithKeys(primaryKeys, primaryCursor, cues, batch,
-                        accepted, gemini, model);
-                primaryCursor = translated.nextKey;
-            } catch (Exception error) {
-                if (error instanceof InterruptedException) throw error;
-                primaryFailure = error;
-                if (fallbackKeys.isEmpty()) throw primaryFailure;
-
                 try {
-                    translated = translateWithKeys(fallbackKeys, fallbackCursor, cues, batch,
-                            accepted, !gemini, fallbackModel);
-                    fallbackCursor = translated.nextKey;
-                } catch (Exception fallbackFailure) {
-                    if (fallbackFailure instanceof InterruptedException) throw fallbackFailure;
-                    IOException combined = new IOException(
-                            "Hết API key/provider khả dụng. Lỗi chính: "
-                                    + safeMessage(primaryFailure)
-                                    + "; lỗi dự phòng: " + safeMessage(fallbackFailure));
-                    combined.addSuppressed(primaryFailure);
-                    combined.addSuppressed(fallbackFailure);
-                    throw combined;
+                    translated = translateWithKeys(primaryKeys, primaryCursor, cues, batch,
+                            accepted, gemini, model);
+                    primaryCursor = translated.nextKey;
+                } catch (Exception error) {
+                    if (error instanceof InterruptedException) throw error;
+                    primaryFailure = error;
+                    if (fallbackKeys.isEmpty()) throw primaryFailure;
+
+                    try {
+                        translated = translateWithKeys(fallbackKeys, fallbackCursor, cues, batch,
+                                accepted, !gemini, fallbackModel);
+                        fallbackCursor = translated.nextKey;
+                    } catch (Exception fallbackFailure) {
+                        if (fallbackFailure instanceof InterruptedException) throw fallbackFailure;
+                        IOException combined = new IOException(
+                                "Hết API key/provider khả dụng. Lỗi chính: "
+                                        + safeMessage(primaryFailure)
+                                        + "; lỗi dự phòng: " + safeMessage(fallbackFailure));
+                        combined.addSuppressed(primaryFailure);
+                        combined.addSuppressed(fallbackFailure);
+                        throw combined;
+                    }
                 }
+            } catch (InterruptedException interrupted) {
+                throw interrupted;
+            } catch (Exception batchFailure) {
+                throw new PartialTranslationException(
+                        "Đã dịch " + accepted.size() + "/" + cues.size()
+                                + " câu. Các câu còn lại được giữ nguyên bản gốc.",
+                        buildPartialSrt(cues, accepted), accepted.size(), cues.size(), batchFailure);
             }
 
             for (int i = 0; i < batch.size(); i++) {
@@ -130,6 +139,33 @@ final class AiTranslator {
             }
         }
         return output.toString();
+    }
+
+    static final class PartialTranslationException extends IOException {
+        final String partialSrt;
+        final int translatedCount;
+        final int totalCount;
+
+        PartialTranslationException(String message, String partialSrt,
+                                     int translatedCount, int totalCount, Exception cause) {
+            super(message, cause);
+            this.partialSrt = partialSrt;
+            this.translatedCount = translatedCount;
+            this.totalCount = totalCount;
+        }
+    }
+
+    static String buildPartialSrt(List<Srt.Cue> source, List<String> translated) {
+        StringBuilder result = new StringBuilder();
+        for (int i = 0; i < source.size(); i++) {
+            Srt.Cue cue = source.get(i);
+            String text = i < translated.size() ? translated.get(i) : cue.text;
+            result.append(i + 1).append('\\n')
+                    .append(Srt.format(cue.start)).append(" --> ")
+                    .append(Srt.format(cue.end)).append('\\n')
+                    .append(text).append("\\n\\n");
+        }
+        return result.toString();
     }
 
     private static final class BatchResult {
