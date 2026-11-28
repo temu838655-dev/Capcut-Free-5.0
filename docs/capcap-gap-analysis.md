@@ -23,8 +23,15 @@ Trạng thái trong tài liệu này dựa trên mã nguồn đã đọc. “Có
 - TTS OpenAI; TTS offline dựa trên giọng tiếng Việt đã cài trong Android TextToSpeech.
 - Xuất WAV, tách âm thanh, thay/trộn track âm thanh vào MP4; có tùy chọn ghi phụ đề, độ phân giải, màu/cỡ/vị trí chữ, nền phụ đề và ducking.
 - Xử lý tách âm thanh hàng loạt tối đa 30 video.
-- Lưu dự án cục bộ bằng tên và xuất gói ZIP.
+- Lưu dự án cục bộ bằng tên và xuất gói ZIP; metadata dự án có schema version, thời điểm lưu, số cue, URI video và nội dung phụ đề. Khi mở, ứng dụng phân tích lại phụ đề và xử lý trường hợp quyền đọc URI video đã hết hạn để không làm mất phụ đề.
+- Giới hạn nội dung phụ đề cho mỗi dự án đặt tên là 1,5 MB UTF-8 do hiện vẫn dùng SharedPreferences; chưa có cơ sở dữ liệu, lịch sử phiên bản hay autosave theo checkpoint.
 - Có ModelStore xác minh SHA-256 và dependency ONNX Runtime, nhưng chưa xác minh được một pipeline ASR/OCR/TTS neural offline hoàn chỉnh đang sử dụng các mô hình ONNX này.
+
+## Việc vừa gia cố
+
+- Bổ sung kiểm thử parser cho BOM/CRLF, cue nhiều dòng, thứ tự cue, WebVTT identifier/settings/NOTE, ASS text có dấu phẩy và mốc thời gian sai.
+- Gia cố lưu/mở dự án: metadata có phiên bản, ngày lưu, số cue; kiểm tra lại dữ liệu khi mở; thông báo rõ nếu quyền truy cập video đã hết hạn và vẫn khôi phục phụ đề.
+- Các thay đổi trên mới được ghi vào mã nguồn; chưa có kết quả chạy unit test, lint, build hoặc kiểm thử thiết bị trong lượt này.
 
 ## So sánh năng lực
 
