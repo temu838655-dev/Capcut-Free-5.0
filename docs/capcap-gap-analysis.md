@@ -18,7 +18,7 @@ Trạng thái trong tài liệu này dựa trên mã nguồn đã đọc. “Có
 - Timeline phụ đề cơ bản: thêm, sửa, xóa, kéo thời gian bắt đầu/kết thúc.
 - Nhận dạng phụ đề cứng bằng OCR video qua VideoOcr; OCR ảnh bằng ML Kit Latin.
 - Nhận dạng lời thoại qua OpenAI Whisper API; tệp âm thanh giới hạn 24 MB trong lớp Whisper.
-- Dịch AI qua OpenAI/Gemini, chia lô 12 câu và giữ tối đa 3 câu ngữ cảnh đã dịch; hiện chỉ có một khóa chính và một khóa dự phòng khác nhà cung cấp.
+- Dịch AI qua OpenAI/Gemini, chia lô 12 câu, giữ ngữ cảnh 3 cặp nguồn/bản dịch gần nhất; hỗ trợ nhiều khóa theo thứ tự, xoay vòng theo batch, fallback khác nhà cung cấp và giữ nguyên các câu chưa dịch khi batch thất bại.
 - Dịch máy offline/thiết bị qua ML Kit sau khi tải mô hình.
 - TTS OpenAI; TTS offline dựa trên giọng tiếng Việt đã cài trong Android TextToSpeech.
 - Xuất WAV, tách âm thanh, thay/trộn track âm thanh vào MP4; có tùy chọn ghi phụ đề, độ phân giải, màu/cỡ/vị trí chữ, nền phụ đề và ducking.
@@ -86,3 +86,14 @@ Không tuyên bố tương đương CapCap chỉ vì các nút chức năng đã
 - CapCap technical stack: https://github.com/notepower2k1/CapCap/blob/main/docs/technical-stack.md
 - CapCap project structure: https://github.com/notepower2k1/CapCap/blob/main/docs/project-structure.md
 - CapCap how-to-use: https://github.com/notepower2k1/CapCap/blob/main/docs/how-to-use.md
+
+
+## Cập nhật sau đợt hoàn thiện AI translation
+
+- API key có thể nhập nhiều dòng hoặc phân tách bằng dấu phẩy/chấm phẩy; khóa được xử lý trong bộ nhớ, không lưu vào dự án.
+- Mỗi batch thử lần lượt các khóa của provider chính; lỗi giới hạn tốc độ/lỗi máy chủ được retry có giới hạn rồi chuyển khóa tiếp theo.
+- Khi toàn bộ khóa chính không khả dụng, ứng dụng thử danh sách khóa của provider dự phòng nếu người dùng đã cấu hình.
+- Nếu batch thất bại sau khi đã dịch một phần, ứng dụng giữ lại các câu đã dịch và giữ nguyên văn bản nguồn của các câu còn lại, đồng thời lưu bản nháp để tránh mất nội dung.
+- Đã bổ sung unit tests cho phân tích danh sách khóa, kiểm tra tên model và bảo toàn timestamp/nội dung trong kết quả dịch dở dang.
+
+**Chưa xác nhận:** chưa có kết quả build/lint/unit test/Android Emulator smoke test được kiểm tra trong phiên này. Những thay đổi trên chưa đủ điều kiện để tuyên bố production release.
