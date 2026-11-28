@@ -80,7 +80,7 @@ final class AiTranslator {
         }
 
         StringBuilder output = new StringBuilder();
-        List<String> accepted = new ArrayList<>(batch.size());
+        List<String> accepted = new ArrayList<>(cues.size());
         int primaryCursor = 0;
         int fallbackCursor = 0;
 
@@ -290,7 +290,7 @@ final class AiTranslator {
                         + translations.length() + ", cần " + batch.size());
             }
 
-            List<String> result = new ArrayList<>(cues.size());
+            List<String> result = new ArrayList<>(batch.size());
             for (int i = 0; i < translations.length(); i++) {
                 Object value = translations.get(i);
                 if (!(value instanceof String)) {
